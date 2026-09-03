@@ -1,0 +1,203 @@
+:root {
+  --cream-bg: #f1e6d2;
+  --card-bg: #f8f2e5;
+  --ink: #211c17;
+  --body-text: #524b41;
+  --pill-green-bg: #dceed7;
+  --pill-green-text: #3a6b3c;
+  --pill-pink-bg: #fbe1df;
+  --pill-pink-text: #9c4a43;
+  --pill-white-bg: #ffffff;
+  --pill-border: #ddd2bd;
+  --accent: #c8703f;
+  --accent-dark: #a85a30;
+  --card-border: #e7dcc4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--cream-bg);
+  color: var(--ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* ---------- Poster / hero card ---------- */
+
+.hero {
+  position: relative;
+  width: 100%;
+}
+
+.hero-media {
+  width: 100%;
+  aspect-ratio: 1792 / 2390;
+  max-height: 92vh;
+  overflow: hidden;
+  background: var(--cream-bg);
+}
+
+.hero-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.hero-card {
+  position: relative;
+  z-index: 2;
+  max-width: 700px;
+  margin: -120px auto 0;
+  padding: 0 1.5rem;
+}
+
+@media (min-width: 720px) {
+  .hero-card {
+    margin: -140px 0 0 3rem;
+    padding: 0;
+  }
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  padding: 2.2rem 2.4rem 2.4rem;
+  box-shadow: 0 30px 60px -20px rgba(30, 24, 10, 0.35);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.pill--green {
+  background: var(--pill-green-bg);
+  color: var(--pill-green-text);
+}
+
+.pill--pink {
+  background: var(--pill-pink-bg);
+  color: var(--pill-pink-text);
+}
+
+.pill--white {
+  background: var(--pill-white-bg);
+  color: var(--ink);
+  border-color: var(--pill-border);
+}
+
+.card h1 {
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-weight: 800;
+  font-size: clamp(2.1rem, 4.6vw, 3.1rem);
+  line-height: 1.08;
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+
+.card p {
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--body-text);
+  margin: 0 0 1.6rem;
+  max-width: 46ch;
+}
+
+.card p strong {
+  color: var(--ink);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn--primary:hover {
+  background: var(--accent-dark);
+}
+
+.btn--secondary {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--pill-border);
+}
+
+.btn--secondary:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- Rest of the page: empty canvas ---------- */
+
+.page-body {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 6rem;
+}
+
+@media (min-width: 720px) {
+  .page-body {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+}
+
+footer {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--body-text);
+  padding: 2rem 1.5rem 3rem;
+}
+
+footer a {
+  color: var(--accent-dark);
+}
