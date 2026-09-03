@@ -6,16 +6,147 @@
 <title>Week 1 — Two Belgians and 303 superheroes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #0d0d0d; overflow: hidden; }
+  * { box-sizing: border-box; }
+
+  .viz-frame {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    display: block;
+  }
+
+  .back-btn {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    background: rgba(20, 20, 20, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-family: "Inter", -apple-system, sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    backdrop-filter: blur(6px);
+  }
+
+  .back-btn:hover { background: rgba(40, 40, 40, 0.85); }
+
+  .intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    font-family: "Inter", -apple-system, sans-serif;
+  }
+
+  .intro-overlay.hidden { display: none; }
+
+  .intro-modal {
+    background: #f8f2e5;
+    color: #211c17;
+    max-width: 420px;
+    width: calc(100% - 2.5rem);
+    border-radius: 20px;
+    padding: 1.8rem 1.8rem 1.5rem;
+    box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.5);
+  }
+
+  .intro-modal h2 {
+    margin: 0 0 0.9rem;
+    font-size: 1.25rem;
+  }
+
+  .intro-note {
+    margin: 0 0 1rem;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--body-text, #524b41);
+  }
+
+  .intro-modal ul {
+    margin: 0 0 1.3rem;
+    padding-left: 1.1rem;
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+
+  .intro-modal button {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: 0;
+    border-radius: 999px;
+    background: #c8703f;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+
+  .intro-modal button:hover { background: #a85a30; }
+</style>
 </head>
 <body>
 
-<main class="page-body" style="padding-top: 3rem;">
-  <p><a href="index.html">&larr; Back</a></p>
-  <h1 style="font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.8rem, 4vw, 2.6rem);">Week 1</h1>
-  <p style="color: var(--body-text); max-width: 60ch;">Content coming soon.</p>
-</main>
+<a class="back-btn" href="index.html">&larr; Home</a>
+
+<iframe
+  class="viz-frame"
+  src="marvel_clusters_interactive.html"
+  title="Interactive Marvel character network">
+</iframe>
+
+<div class="intro-overlay" id="introOverlay">
+  <div class="intro-modal">
+    <h2>Quick start</h2>
+    <p class="intro-note">We spread each community out into its own "petal" so the clusters don't overlap.</p>
+    <ul>
+      <li><strong>Hover</strong> a node to see who it is and its neighbors</li>
+      <li><strong>Scroll / drag</strong> to zoom and pan</li>
+      <li><strong>Double-click</strong> a node or a legend entry to zoom into that community</li>
+      <li><strong>Search</strong> for a character by name</li>
+      <li><strong>Esc</strong> or Reset to clear focus and zoom all the way back out</li>
+    </ul>
+    <button id="introClose">Got it</button>
+  </div>
+</div>
+
+<script>
+  const overlay = document.getElementById('introOverlay');
+  const vizFrame = document.querySelector('.viz-frame');
+  function closeIntro() { overlay.classList.add('hidden'); }
+
+  document.getElementById('introClose').addEventListener('click', closeIntro);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeIntro(); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeIntro(); });
+
+  // Keydown events that land inside the iframe (i.e. whenever the mouse is
+  // over the graph, which is most of the time) fire on its own window, not
+  // this page's -- so Esc wouldn't reach the listener above unless we also
+  // listen on the iframe's own window once it's loaded.
+  vizFrame.addEventListener('load', () => {
+    try {
+      vizFrame.contentWindow.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeIntro();
+      });
+    } catch (err) {
+      // Ignore -- would only happen if the iframe weren't same-origin.
+    }
+  });
+</script>
 
 </body>
 </html>

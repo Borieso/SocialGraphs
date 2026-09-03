@@ -34,49 +34,23 @@ img {
   max-width: 100%;
 }
 
-/* ---------- Poster / hero card ---------- */
+/* ---------- Hero: text left, picture right ---------- */
 
-.hero {
-  position: relative;
-  width: 100%;
+.hero-simple {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 2.5rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+  align-items: center;
 }
 
-.hero-media {
-  width: 100%;
-  aspect-ratio: 1792 / 2390;
-  max-height: 92vh;
-  overflow: hidden;
-  background: var(--cream-bg);
-}
-
-.hero-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
-.hero-card {
-  position: relative;
-  z-index: 2;
-  max-width: 700px;
-  margin: -120px auto 0;
-  padding: 0 1.5rem;
-}
-
-@media (min-width: 720px) {
-  .hero-card {
-    margin: -140px 0 0 3rem;
-    padding: 0;
+@media (min-width: 860px) {
+  .hero-simple {
+    grid-template-columns: 1.1fr 0.9fr;
+    padding: 5rem 3rem 3rem;
   }
-}
-
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 28px;
-  padding: 2.2rem 2.4rem 2.4rem;
-  box-shadow: 0 30px 60px -20px rgba(30, 24, 10, 0.35);
 }
 
 .pills {
@@ -113,7 +87,7 @@ img {
   border-color: var(--pill-border);
 }
 
-.card h1 {
+.hero-text h1 {
   font-family: "Playfair Display", Georgia, "Times New Roman", serif;
   font-weight: 800;
   font-size: clamp(2.1rem, 4.6vw, 3.1rem);
@@ -122,7 +96,7 @@ img {
   color: var(--ink);
 }
 
-.card p {
+.hero-text p {
   font-size: 1.02rem;
   line-height: 1.55;
   color: var(--body-text);
@@ -130,7 +104,7 @@ img {
   max-width: 46ch;
 }
 
-.card p strong {
+.hero-text p strong {
   color: var(--ink);
 }
 
@@ -166,29 +140,97 @@ img {
   background: var(--accent-dark);
 }
 
-.btn--secondary {
-  background: #fff;
-  color: var(--ink);
-  border-color: var(--pill-border);
+.hero-image {
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 25px 50px -25px rgba(30, 24, 10, 0.4);
 }
 
-.btn--secondary:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+.hero-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-/* ---------- Rest of the page: empty canvas ---------- */
+/* ---------- Weeks grid ---------- */
 
-.page-body {
-  max-width: 900px;
+.weeks {
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 4rem 1.5rem 6rem;
+  padding: 1rem 1.5rem 5rem;
 }
 
-@media (min-width: 720px) {
-  .page-body {
+@media (min-width: 860px) {
+  .weeks {
     padding-left: 3rem;
     padding-right: 3rem;
   }
+}
+
+.section-heading {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(1.3rem, 2.6vw, 1.7rem);
+  margin: 0 0 1.2rem;
+  color: var(--ink);
+}
+
+.weeks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.week-card {
+  display: block;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 1.2rem 1.3rem 1.4rem;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+a.week-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 30px -18px rgba(30, 24, 10, 0.4);
+}
+
+.week-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+}
+
+.week-card__num {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--accent-dark);
+}
+
+.week-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.02rem;
+}
+
+.week-card p {
+  margin: 0;
+  color: var(--body-text);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.week-card--disabled {
+  opacity: 0.55;
+}
+
+.week-card--disabled .week-card__num {
+  color: var(--body-text);
 }
 
 footer {
