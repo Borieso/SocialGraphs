@@ -243,3 +243,13 @@ footer {
 footer a {
   color: var(--accent-dark);
 }
+
+.btn--secondary {
+  background: var(--pill-white-bg);
+  color: var(--ink);
+  border-color: var(--pill-border);
+}
+
+.btn--secondary:hover {
+  box-shadow: 0 4px 14px rgba(30, 24, 10, 0.12);
+}
