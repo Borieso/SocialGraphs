@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Week 2 — Growth, and the models that miss it</title>
-<meta name="description" content="We rebuilt the Marvel Wikipedia network as a 24-year growth process with no deletions, then raced it against random and preferential attachment.">
+<meta name="description" content="The Marvel Wikipedia network as a 24-year growth process, raced against random and preferential attachment.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
@@ -39,121 +39,92 @@
   <p class="lede">
     Last week we had one photograph of the Marvel network. This week we went back
     through Wikipedia's edit history and got <strong>25 of them</strong>, one per
-    year. That turns a picture into a process — and a process is something you can
-    finally hold a model up against. So we did: the real thing on the left, pure
-    chance in the middle, rich-get-richer on the right, all three growing side by
-    side from the same starting gun. <strong>Press play further down</strong> —
-    and then look at how little difference the middle panel makes.
+    year. A picture becomes a process, and a process is something you can hold a
+    model up against. So we did — Wikipedia on the left, pure chance in the middle,
+    rich-get-richer on the right, all three growing from the same starting gun.
   </p>
 </header>
 
 <main class="post">
 
-  <p>
-    There is a catch, and it is the whole reason this page exists. The year-by-year
-    record does not just show links appearing. It shows them <em>disappearing</em>:
-    editors prune a "see also" section, rewrite a paragraph, and a link that existed
-    in 2019 is gone in 2020. Of the 3,057 links we could put a date on,
-    <strong>1,295 are no longer there</strong>, and since 2023 the network has been
-    losing more links per year than it gains.
-  </p>
-
-  <p>
-    That is fatal for the models we want to test. Every growth model in the course —
-    Barabási–Albert above all — assumes a node's degree only ever goes <em>up</em>.
-    Fit a growth curve to a quantity that falls, and the fit is meaningless. We could
-    patch the statistics around the problem. Instead we changed the dataset.
-  </p>
-
   <p class="eyebrow">Step one</p>
   <h2>How we got the dataset</h2>
 
   <p>
-    The idea is simple enough to state in one sentence: <strong>keep only the links
-    that are still there today, date each one by the year it first appeared, and
-    declare it permanent from that year onwards.</strong> Deletion stops existing.
-    What is left is a strictly additive growth process — which is precisely the
-    object the models describe.
+    Growth models assume a node's degree only ever goes <em>up</em>. Wikipedia does
+    not work that way — editors prune a "see also" section and a link that existed in
+    2019 is gone in 2020. So we built a dataset the models can actually describe:
+    <strong>keep only the links that are still there today, date each one by the year
+    it first appeared, and treat it as permanent from then on.</strong> What is left
+    is strictly additive.
   </p>
-
-  <p>Two rules do all the work:</p>
 
   <ul class="rule-list">
     <li>
-      <strong>A link's birth year</strong> is the year it was first seen in the
-      article's wikitext — but never earlier than the year either endpoint's article
-      was created. <code>birth_year = max(first_seen, born[source], born[target])</code>.
-      That clamp matters: some links were written while the target was still a red
-      link, so the record sees the link before the page exists. Without it, a frame
-      would contain a link to a character who is not in it. It moved
-      <strong>50</strong> links.
+      <strong>A link's birth year</strong> is the year it first appears in the
+      article's wikitext, but never earlier than the year either endpoint's article
+      was created:
+      <code>birth_year = max(first_seen, born[source], born[target])</code>. Some
+      links were written while the target was still a red link, and without the clamp
+      a frame would contain a link to a character who is not in it. It moved 50 links.
     </li>
     <li>
-      <strong>A link is in the picture for year <em>y</em></strong> if its birth year
-      is <em>y</em> or earlier; a character is in it if their article existed by then.
-      Nothing ever leaves. We assert this frame by frame — all 25 of them are subsets
-      of the next.
+      <strong>A link is in frame <em>y</em></strong> if its birth year is <em>y</em>
+      or earlier, and a character is in it if their article existed by then. Nothing
+      ever leaves — we assert it frame by frame.
     </li>
   </ul>
 
   <div class="stat-row">
     <div class="stat"><b>1,762</b><span>links kept — every link alive today</span></div>
-    <div class="stat"><b>1,295</b><span>links dropped, deleted at some point</span></div>
-    <div class="stat"><b>176</b><span>flapped: removed, then restored. We treat them as always present</span></div>
-    <div class="stat"><b>0</b><span>links in the final frame that are missing from last week's snapshot</span></div>
+    <div class="stat"><b>1,295</b><span>links dropped: deleted at some point</span></div>
+    <div class="stat"><b>176</b><span>removed then restored; we treat them as always present</span></div>
+    <div class="stat"><b>0</b><span>links in the final frame missing from last week's snapshot</span></div>
+  </div>
+
+  <p>
+    That last number is the check we care about. The final frame is not
+    <em>similar to</em> the live network we harvested in week 1 — it <em>is</em> it,
+    link for link. The build script asserts it and refuses to publish otherwise.
+  </p>
+
+  <div class="callout callout--warn">
+    <p>
+      <strong>One wrinkle.</strong> Each frame samples 1 January, but the live
+      snapshot was harvested in <strong>September 2026</strong>. The last frame is
+      the only one that is not a 1-January state. Treating 2026 as "the network
+      today" is fine; treating it as one more equal time step is not.
+    </p>
   </div>
 
   <figure class="figure">
     <img src="assets/figures/f1_growth.svg" alt="Characters and links both rising steadily from 2002 to 2026, and a bar chart of how many of today's links were introduced each year, peaking in 2007">
     <figcaption>
-      What the rebuilt dataset looks like: both counts only ever rise. Most of
-      today's links were introduced in the 2006–2010 burst — half of them were
-      already in place by 2011 — which is worth remembering when the growth curves
-      further down go flat.
+      Both counts only ever rise. Most of today's links arrived in the 2006–2010
+      burst — half were in place by 2011 — which is worth remembering when the growth
+      curves further down go flat.
     </figcaption>
   </figure>
 
-  <p>
-    That last number is the check we care about most. The final frame of this dataset
-    is not <em>similar to</em> the live network we harvested in week 1 — it
-    <em>is</em> it, link for link, all 1,762. The build script asserts it and refuses
-    to publish if it ever stops being true.
-  </p>
-
-  <div class="callout callout--warn">
-    <p>
-      <strong>One wrinkle we are not going to hide.</strong> Each frame samples
-      1 January of its year, but the live snapshot was harvested in
-      <strong>September 2026</strong>. So the last frame is the only one that is not
-      a 1-January state, and the 132 links dated 2026 include links added during
-      2026. Treating 2026 as "the network today" is fine. Treating it as one more
-      equal time step is not.
-    </p>
-  </div>
-
   <h3>Take the data</h3>
-  <p>
-    Everything below is computed from these three files. They are the actual build
-    outputs, not a cleaned-up export.
-  </p>
 
   <div class="downloads">
     <a class="dl" href="data/edges_monotone.tsv" download>
       <b>edges_monotone.tsv</b>
       <span>The dataset. One row per link: <code>source</code>, <code>target</code>,
-        <code>birth_year</code>. Sorted by birth year.</span>
+        <code>birth_year</code>.</span>
       <em>1,762 rows · 68 KB</em>
     </a>
     <a class="dl" href="data/frames_monotone.zip" download>
       <b>frames_monotone.zip</b>
-      <span>The same thing pre-sliced: 25 edge lists, <code>edges_2002.tsv</code>
-        through <code>edges_2026.tsv</code>. Each is a complete network.</span>
+      <span>Pre-sliced: 25 edge lists, <code>edges_2002.tsv</code> through
+        <code>edges_2026.tsv</code>. Each is a complete network.</span>
       <em>25 files · 133 KB</em>
     </a>
     <a class="dl" href="data/node_summary.tsv" download>
       <b>node_summary.tsv</b>
-      <span>The 303 characters: arrival rank, the year their article appeared,
-        final degree, article size, pageviews, comic debut year.</span>
+      <span>The 303 characters: arrival rank, article year, final degree, article
+        size, pageviews, comic debut year.</span>
       <em>303 rows · 31 KB</em>
     </a>
   </div>
@@ -162,22 +133,13 @@
   <h2>Watch it grow — three times over</h2>
 
   <p>
-    Here is the whole point of having a process instead of a photograph. All three
-    panels below start empty in 2002 and run to 2026. They use the <em>same</em>
-    arrival schedule — each character shows up in the year their article was really
-    created — and the <em>same</em> number of new links every year. The only thing
-    that differs is <strong>who each new link points at</strong>:
-  </p>
-
-  <ul>
-    <li><strong>Wikipedia</strong> — whoever the editors actually linked to.</li>
-    <li><strong>Random attachment</strong> — a character picked uniformly at random from those who exist.</li>
-    <li><strong>Preferential attachment</strong> — picked with probability proportional to how many links they already have. Rich get richer; this is BA.</li>
-  </ul>
-
-  <p>
-    If arriving early is what makes a hub, the left panel should not look like the
-    middle one. Whether it looks like the right one is the actual question.
+    All three panels start empty in 2002 and run to 2026 on the <em>same</em> arrival
+    schedule and the <em>same</em> number of new links each year. Only the choice of
+    target differs: <strong>Wikipedia</strong> links where the editors did,
+    <strong>random attachment</strong> picks uniformly among characters who exist,
+    and <strong>preferential attachment</strong> picks in proportion to links already
+    held. If arriving early is what makes a hub, the left panel should not look like
+    the middle one.
   </p>
 </main>
 
@@ -246,10 +208,10 @@
         </div>
       </div>
       <div class="sub-card">
-        <h4>Degree distribution</h4>
+        <h4>How unequal is it?</h4>
         <p class="hint">
-          Share of characters with each number of incoming links, log–log. A straight
-          falling line is a heavy tail; a hump is not.
+          Share of characters with <em>at least</em> k links, log–log. A straight
+          falling line means a heavy tail — a few characters hold most of the links.
         </p>
         <canvas id="p-dist"></canvas>
         <div class="legend">
@@ -261,92 +223,65 @@
     </div>
 
     <p class="hint" style="margin-top:1rem">
-      <strong>Three caveats.</strong> The layout is frozen — computed once and reused
-      for every frame and every panel — so a character is born where they will end
-      up, and you can see whether someone <em>stayed</em> a hub. The default
-      positions carry no structure at all: they are a spiral ordered by arrival, so
-      all three panels are drawn on identical coordinates and no engine is flattered.
-      And the cast is a 2026 snapshot: characters whose articles were deleted never
-      appear, and they skew young and low-degree, so if anything the age effect here
-      is understated.
+      <strong>Two caveats.</strong> The layout is frozen — computed once and reused
+      for every frame and every panel, so a character is born where they will end up,
+      and the positions carry no structure of their own (a spiral ordered by arrival).
+      All three panels are therefore drawn on identical coordinates and no engine is
+      flattered. And the cast is a 2026 snapshot: characters whose articles were
+      deleted never appear, and they skew young and low-degree, so if anything the
+      age effect here is understated.
     </p>
   </div>
 </section>
-
 <main class="post">
 
   <p class="eyebrow">What we found</p>
   <h2>Arrival order predicts the hubs, and always did</h2>
 
   <p>
-    On the finished network, <strong>C = 0.713</strong>. Pick two Marvel characters
-    at random and the one whose Wikipedia article came first has more links pointing
-    at it about seven times in ten. Against 10,000 reshuffles of the arrival order,
-    that never happened by chance (p &lt; 0.0002). Hold on to that number — we spend
-    a later section taking it apart.
-  </p>
-
-  <p>
-    The first thing worth reporting is a non-result. On the old dataset, deletions and
-    all, the same number was 0.715. <strong>Throwing away 1,295 links — 42% of the
-    timed record — moved the headline by 0.002.</strong> Whatever produces the
-    correlation between arrival order and links, it is not an artefact of how editors
-    prune.
-  </p>
-
-  <p>
-    The more interesting part is what the curve does over time. Watch it in the middle
-    chart above, or here:
+    On the finished network, <strong>C = 0.713</strong>: pick two characters at random
+    and the one whose article came first has more links pointing at it about seven
+    times in ten. Against 10,000 reshuffles of the arrival order that never happened
+    by chance (p &lt; 0.0002). Hold on to the number — we take it apart later.
   </p>
 
   <figure class="figure">
     <img src="assets/figures/f4_cy.svg" alt="C on every frame from 2003 to 2026, rising only slightly from 0.66 to 0.71, with two dashed preferential-attachment reference lines at 0.72 and 0.85">
     <figcaption>
-      C is 0.66 when the network has 69 characters and 46 links. Twenty-one years and
-      1,716 links later it is 0.71. <strong>The age advantage is there from the very
-      first frames and gains almost nothing from two decades of growth.</strong>
-      The two dashed lines are the same model — preferential attachment — measured
-      two different ways, and the gap between them is the subject of the section
-      after next.
-      The dip in 2006 is the year 71 new articles appeared at once — a crowd of
-      newcomers with no links briefly dilutes the ordering, and it recovers within two
-      years as they get their first links.
+      C is 0.66 when the network has 69 characters and 46 links, and 0.71 twenty-one
+      years and 1,716 links later. <strong>The age advantage is there from the first
+      frames and gains almost nothing from two decades of growth.</strong> The dip in
+      2006 is the year 71 new articles appeared at once, briefly diluting the ordering.
     </figcaption>
   </figure>
 
   <p>
-    The advantage does not <em>compound</em>. It is <strong>frozen in</strong>:
-    settled early, then preserved rather than extended. Whatever put the hubs on top
-    had done its work by about 2007.
+    So the advantage does not <em>compound</em>. It is settled early and then
+    preserved: whatever put the hubs on top had done its work by about 2007.
   </p>
 
   <p class="eyebrow">What we found</p>
   <h2>How fast does a character grow?</h2>
 
   <p>
-    This is the analysis the old dataset simply could not support. BA's central
-    prediction is not about final degree — it is about trajectories. A node that joins
-    at time <em>t<sub>i</sub></em> should grow as
+    BA's central prediction is not about final degree but about trajectories: a node
+    joining at time <em>t<sub>i</sub></em> should grow as
     <code>k(t) ∝ (t − t<sub>i</sub>)<sup>β</sup></code> with <strong>β = ½</strong>.
-    On a dataset where degrees fall, you cannot fit that. Here every trajectory is
-    monotone by construction, so we can.
+    Every trajectory here is monotone, so we can fit it.
   </p>
 
   <div class="stat-row">
-    <div class="stat"><b>0.46</b><span>median β across the 105 characters big enough to fit. BA predicts 0.5</span></div>
+    <div class="stat"><b>0.46</b><span>median β over the 105 characters big enough to fit. BA predicts 0.5</span></div>
     <div class="stat"><b>0.57</b><span>β for the first 50 arrivals</span></div>
     <div class="stat"><b>0.33</b><span>β for arrivals 51–150</span></div>
-    <div class="stat"><b>0.06</b><span>β for everyone after rank 150 — flat</span></div>
+    <div class="stat"><b>0.06</b><span>β after rank 150 — flat</span></div>
   </div>
 
   <p>
-    The first number is the closest this project has come to confirming a BA
-    prediction on its own terms. The other three take it away again.
-    <strong>β is not a property of the network, it is a property of the
-    cohort.</strong> Late arrivals do not grow slowly; they do not grow. BA predicts
-    one β for every node, and this network has at least three — which also means the
-    pooled figure (0.35) is an average over populations obeying different laws, and
-    describes none of them.
+    The first number is a genuine hit for BA. The other three take it away again:
+    <strong>β is a property of the cohort, not of the network.</strong> Late arrivals
+    do not grow slowly, they do not grow. BA predicts one β for every node, and this
+    network has at least three — so the pooled figure of 0.35 describes none of them.
   </p>
 </main>
 
@@ -370,15 +305,13 @@
     </div>
   </div>
 </section>
-
 <main class="post">
   <figure class="figure">
     <img src="assets/figures/f2_kt.svg" alt="Three panels: mean growth curves per cohort, the 40 biggest hubs individually, and a histogram of per-node beta centred near 0.5">
     <figcaption>
-      The same thing as a static figure. Middle: the 40 biggest hubs, each curve now
-      monotone, against BA's slope-½ reference. Right: per-character β has median 0.46
-      with a wide spread — consistent with BA on average, and with almost nobody in
-      particular.
+      The static version. Middle: the 40 biggest hubs against BA's slope-½ reference.
+      Right: per-character β has median 0.46 with a wide spread — consistent with BA
+      on average, and with almost nobody in particular.
     </figcaption>
   </figure>
 
@@ -386,18 +319,12 @@
   <h2>Rich-get-richer is fading</h2>
 
   <p>
-    You can measure the mechanism directly instead of inferring it from the outcome.
-    For every link born in year <em>y</em>, look at how many links its target already
-    had at the end of <em>y−1</em>, and divide by how many characters were sitting at
-    that degree and were therefore available to be picked. That gives Π(k): the chance
-    a character with <em>k</em> links gets the next one. BA assumes Π(k) ∝ k — exactly
-    linear. What we get is <strong>Π(k) ∝ k<sup>0.74</sup></strong>, and anywhere
-    between 0.74 and 0.82 depending on where you start the fit.
-  </p>
-
-  <p>
-    Sublinear means hubs still win, but less decisively than BA assumes. Then we split
-    the record in half, and the more interesting thing fell out.
+    You can measure the mechanism directly. For every link born in year <em>y</em>,
+    take how many links its target already had at the end of <em>y−1</em>, and divide
+    by how many characters sat at that degree and were available to be picked. That is
+    Π(k), the chance a character with <em>k</em> links gets the next one. BA assumes
+    Π(k) ∝ k, exactly linear. We get <strong>Π(k) ∝ k<sup>0.74</sup></strong> — hubs
+    still win, but less decisively than BA assumes. Then we split the record in half.
   </p>
 </main>
 
@@ -441,7 +368,6 @@
     </div>
   </div>
 </section>
-
 <main class="post">
   <div class="stat-row">
     <div class="stat"><b>0.88</b><span>α in 2003–2012 — nearly the linear rule BA assumes</span></div>
@@ -450,16 +376,16 @@
 
   <p>
     <strong>The mechanism that built the hub structure is measurably weaker now than
-    it was.</strong> New links in the second decade are being spread more evenly over
-    low-degree targets instead of funnelled to the giants. And that lines up exactly
-    with the growth curves: the era in which late cohorts fail to grow at all is the
-    era in which the kernel that would have to lift them is fading.
+    it was.</strong> New links in the second decade are spread more evenly over
+    low-degree targets instead of funnelled to the giants — which lines up with the
+    growth curves, since the era when late cohorts fail to grow is the era when the
+    kernel that would lift them is fading.
   </p>
 
   <figure class="figure">
     <img src="assets/figures/f3_kernel.svg" alt="Attachment kernel on log-log axes with fits at alpha 0.64 and 0.74, and the two eras separately at 0.88 and 0.65">
     <figcaption>
-      Left: the kernel over the whole record, fitted from k ≥ 1 and from k ≥ 5. The
+      Left: the kernel over the whole record, fitted from k ≥ 1 and from k ≥ 5 — the
       low-degree bins are flat and drag the fit down, which is why the starting point
       matters. Right: the same measurement split into two eras.
     </figcaption>
@@ -469,9 +395,8 @@
   <h2>Against the null models — twice, with different answers</h2>
 
   <p>
-    A number like C = 0.713 means nothing on its own. It needs something to be
-    compared against. The textbook way to do that is to build reference networks of
-    the same size — 303 characters, 1,762 links — and see where the real one falls:
+    C = 0.713 means nothing on its own. The textbook way to give it meaning is to
+    build reference networks of the same size — 303 characters, 1,762 links:
   </p>
 
   <div class="table-wrap">
@@ -486,29 +411,20 @@
     </table>
   </div>
 
-  <p>
-    Read that table on its own and the conclusion writes itself: the real network is
-    miles above chance, comfortably below pure preferential attachment, and the truth
-    is somewhere in between. That is the answer we expected, and it is the answer we
-    would have published if we had not built the player first.
-  </p>
-
   <div class="callout">
     <p>
       <strong>The player disagrees.</strong> Scroll back up and read the C under each
-      of the three panels at 2026. Wikipedia is 0.713 — and <em>random attachment</em>
-      is about 0.70. Not 0.50. The middle panel, which picks its targets by coin
-      flip, reproduces almost the entire age effect.
+      panel at 2026. Wikipedia is 0.713 — and <em>random attachment</em> is about
+      0.70. Not 0.50. The middle panel, which picks its targets by coin flip,
+      reproduces almost the entire age effect.
     </p>
   </div>
 
   <p>
-    The two tables are measuring different things, and the player's version is the
-    one that answers our question. The size-matched references throw away the real
-    growth schedule: G(n,m) has no growth at all, and the textbook BA twin hands every
-    arriving node six links at once. The player keeps the real arrival order and the
-    real number of new links in every year, and changes <em>only</em> the rule for
-    picking targets. So we re-ran both engines that way, 60 times each:
+    The size-matched references throw away the real growth schedule: G(n,m) has no
+    growth at all, and textbook BA hands every arriving node six links at once. The
+    player keeps the real arrival order and the real yearly link budget and changes
+    <em>only</em> the targeting rule. Run that way, 60 times each:
   </p>
 
   <div class="table-wrap">
@@ -526,40 +442,32 @@
     <img src="assets/figures/f5_nulls.svg" alt="Size-matched references put the real network between 0.5 and 0.85; schedule-matched engines put random, real and preferential attachment all within 0.70 to 0.72">
     <figcaption>
       The same question, asked two ways. Below the gap: idealised networks of the
-      right size. Above it: the same two rules run on the real arrival schedule.
-      The real network's C is the vertical line. In the bottom block it is a
-      strong result; in the top block all three points sit on top of each other.
+      right size. Above it: the same two rules run on the real arrival schedule,
+      where all three points sit on top of each other.
     </figcaption>
   </figure>
 
   <p>
-    <strong>Nearly all of the age effect is first-mover advantage, and nothing more
-    than that.</strong> A character whose article appeared in 2005 has been eligible
-    to receive links for twenty-one years; one who appeared in 2020 has had six. That
-    alone — with targets chosen by coin flip — produces C ≈ 0.70. Preferential
-    attachment adds 0.014 on top of it. Wikipedia lands between the two, and we cannot
-    tell it apart from either: its C sits inside both 95% intervals.
+    <strong>Nearly all of the age effect is first-mover advantage and nothing
+    more.</strong> A character whose article appeared in 2005 has been eligible for
+    links for twenty-one years; one from 2020 has had six. That alone, with targets
+    chosen by coin flip, gives C ≈ 0.70. Preferential attachment adds 0.014 on top.
+    Wikipedia lands between the two and sits inside both intervals.
   </p>
 
   <p>
-    This does not undo the earlier sections; it reframes them. C was the wrong
-    statistic to hang the story on, because it is mostly a measurement of who has had
-    more time. The measurements that <em>do</em> separate the real network from a coin
-    flip are the ones that look at the mechanism directly — the attachment kernel is
-    not flat, α is not 0, hubs really are favoured, and that favouritism is measurably
-    weaker now than it was in 2008. Those results stand. "Early articles have more
-    links" turns out to be a much cheaper fact than it looks.
+    C was the wrong statistic to hang the story on, because it mostly measures who has
+    had more time. What <em>does</em> separate this network from a coin flip is the
+    mechanism: the kernel is not flat, hubs really are favoured, and that favouritism
+    is weaker now than it was in 2008.
   </p>
 
   <p class="eyebrow">The obvious objection</p>
   <h2>"Old articles are just longer"</h2>
 
   <p>
-    Of course they are. An article that has existed since 2004 has had twenty years of
-    editors adding paragraphs, and longer articles contain more links. If that were the
-    whole story, the age effect would be a fact about prose volume, not about network
-    growth. We wrote this control down before looking, and we predicted one half of it
-    would fail.
+    Of course they are, and longer articles contain more links. We wrote this control
+    down before looking, and predicted one half of it would fail.
   </p>
 
   <div class="table-wrap">
@@ -569,7 +477,7 @@
         <tr><td class="t">links pointing in</td><td class="t">nothing</td><td>−0.427</td></tr>
         <tr><td class="t">links pointing in</td><td class="t">article size</td><td>−0.181</td></tr>
         <tr><td class="t">links pointing in</td><td class="t">article size + pageviews</td><td>−0.156</td></tr>
-        <tr><td class="t">links pointing in</td><td class="t">+ the year the character debuted in the comics</td><td><strong>−0.139</strong></td></tr>
+        <tr><td class="t">links pointing in</td><td class="t">+ the character's comic debut year</td><td><strong>−0.139</strong></td></tr>
         <tr><td class="t">links pointing out</td><td class="t">nothing</td><td>−0.344</td></tr>
         <tr><td class="t">links pointing out</td><td class="t">article size</td><td><strong>−0.046</strong></td></tr>
       </tbody>
@@ -579,77 +487,44 @@
   <p>
     The prediction held. <strong>Links pointing <em>out</em> are essentially pure prose
     volume</strong> — control for article size and the effect collapses to −0.046,
-    which is what should happen, because an article's outgoing links are just things
-    its own text mentions. Links pointing <em>in</em> are different: roughly two thirds
-    of the raw effect is notability and article size, and the remaining third survives
-    four separate controls, including how long the character has existed in the comics.
+    which is what should happen, since an article's outgoing links are just things its
+    own text mentions. Links pointing <em>in</em> are different: about two thirds of
+    the raw effect is notability and article size, and the remaining third survives
+    four controls.
   </p>
-
-  <h2>What changed, and what didn't</h2>
-
-  <div class="table-wrap">
-    <table class="data">
-      <thead><tr><th>Quantity</th><th>Old dataset</th><th>Deletions removed</th><th>What the deletions were doing</th></tr></thead>
-      <tbody>
-        <tr><td class="t">C, the headline</td><td>0.715</td><td>0.713</td><td class="t">Nothing — removal is blind to degree</td></tr>
-        <tr><td class="t">Growth exponent β</td><td class="t">0.61, via a stand-in</td><td class="t">0.46, real trajectories</td><td class="t">Hiding the trajectories entirely</td></tr>
-        <tr><td class="t">β by cohort</td><td class="t">not measurable</td><td class="t">0.57 / 0.33 / 0.06</td><td class="t">One β was always a mixture</td></tr>
-        <tr><td class="t">Kernel α (k ≥ 5)</td><td>0.87</td><td>0.75</td><td class="t">Inflating Π(k) at the top: hubs that were shedding links still counted as available</td></tr>
-        <tr><td class="t">Kernel by era</td><td class="t">0.86 → 0.92, rising</td><td class="t">0.88 → 0.65, falling</td><td class="t"><strong>Reversing the trend</strong></td></tr>
-        <tr><td class="t">C over time</td><td class="t">flat</td><td class="t">flat</td><td class="t">Nothing — the freezing is real</td></tr>
-      </tbody>
-    </table>
-  </div>
 
   <h2>So what</h2>
 
-  <p>
-    We built the monotone dataset to remove a nuisance. It did that, and then it did
-    two things we were not expecting: it made one model prediction testable for the
-    first time, and — once we put the models side by side on the real schedule — it
-    took our headline result away from us.
-  </p>
-
   <ol>
     <li>
-      <strong>The age effect is robust, and mostly trivial.</strong> C = 0.713 against
-      0.715 on the old dataset, after deleting 42% of the timed links: not an artefact
-      of editorial pruning. But random attachment on the same arrival schedule gets
-      0.701. Existing for longer is nearly the whole explanation.
+      <strong>The age effect is real and mostly trivial.</strong> C = 0.713, but
+      random attachment on the same arrival schedule reaches 0.701. Existing for
+      longer is nearly the whole explanation.
     </li>
     <li>
-      <strong>BA's trajectory prediction holds — for the founding cohort, and only
-      for it.</strong> Median β of 0.46 against a predicted 0.5 is a genuine hit. But
-      β falls from 0.57 to 0.33 to 0.06 across arrival cohorts. This network is a
-      fast-growing core wrapped in a periphery that is standing still.
+      <strong>BA's trajectory prediction holds for the founding cohort, and only
+      for it.</strong> Median β of 0.46 against a predicted 0.5 is a hit, but β falls
+      from 0.57 to 0.33 to 0.06 across cohorts: a fast-growing core wrapped in a
+      periphery that is standing still.
     </li>
     <li>
-      <strong>Preferential attachment is real, sublinear, and fading.</strong>
-      Π(k) ∝ k<sup>0.74</sup> over the whole record; α ≈ 0.88 in the first decade and
-      ≈ 0.65 in the second. This is the part of the story that a coin flip cannot
-      produce, and it is the opposite of what the deletion-contaminated record said.
+      <strong>Preferential attachment is real, sublinear and fading.</strong>
+      Π(k) ∝ k<sup>0.74</sup> overall; α ≈ 0.88 in the first decade and ≈ 0.65 in the
+      second. This is the part a coin flip cannot produce.
     </li>
     <li>
-      <strong>The leaderboard is not defended, it is simply never challenged.</strong>
-      C never compounds because the only characters who could close the gap have
-      β ≈ 0 and face a weakening kernel over exactly the period they would have to do
-      it in.
-    </li>
-    <li>
-      <strong>Null models have to match the thing they are a null for.</strong> Our
-      size-matched references said the age effect was overwhelming. Schedule-matched
+      <strong>A null model has to match the thing it is a null for.</strong>
+      Size-matched references said the age effect was overwhelming; schedule-matched
       ones said it was almost entirely a consequence of the schedule. Same data, same
-      statistic, opposite conclusions — and only one of the two comparisons was
-      answering the question we actually asked.
+      statistic, opposite conclusions.
     </li>
   </ol>
 
   <p>
-    The dataset we would want next is the one this one cannot reach: monthly rather
-    than yearly resolution over 2013–2026, to see whether the kernel's decline is a
-    real editorial shift — Wikipedia's linking norms tightening, "see also" sections
-    being pruned — or an artefact of keeping only surviving links, since recent links
-    have simply had less time to be deleted.
+    What we would want next is monthly rather than yearly resolution over 2013–2026,
+    to see whether the kernel's decline is a real editorial shift or an artefact of
+    keeping only surviving links — recent links have simply had less time to be
+    deleted.
   </p>
 
   <p style="margin-bottom:4rem">

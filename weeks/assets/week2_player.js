@@ -1,8 +1,7 @@
 /* Week 2, widget 1 — watch the graph grow, three times over.
  *
- * Forked from the player built for notebook 2.12, with the deletion machinery
- * taken out: on the monotone dataset nothing is ever removed, so a replay is
- * just nodes and links arriving in order.
+ * Nothing is ever removed from this dataset, so a replay is just nodes and
+ * links arriving in order.
  *
  * The two right-hand panels run the SAME arrival schedule and the SAME number
  * of new links per year as Wikipedia. Only the choice of target differs. If
@@ -126,17 +125,18 @@
   function draw(engine, st) {
     const cv = document.getElementById('cv-' + engine.key);
     const dpr = window.devicePixelRatio || 1;
-    const w = cv.clientWidth, h = 290;
+    const w = cv.clientWidth, h = 360;
     cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
     const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
-    const pad = 13, X = x => pad + x * (w - 2 * pad), Y = y => pad + (1 - y) * (h - 2 * pad);
+    const pad = 16, X = x => pad + x * (w - 2 * pad), Y = y => pad + (1 - y) * (h - 2 * pad);
 
-    // Cream is a light ground, so the template's pale line colour vanished
-    // here -- links need to be visible enough to read the shape.
-    g.strokeStyle = 'rgba(82, 75, 65, 0.30)';
-    g.lineWidth = 0.5;
+    // By 2026 there are 1,762 links over 303 nodes. Drawn at any real weight
+    // that is a solid disc, so links go in very faint -- they are texture here,
+    // and the thing to actually read is where the big circles sit.
+    g.strokeStyle = 'rgba(82, 75, 65, 0.13)';
+    g.lineWidth = 0.4;
     g.beginPath();
     for (const [a, b] of st.edges) {
       const na = D.nodes[a], nb = D.nodes[b];
@@ -145,13 +145,22 @@
     g.stroke();
 
     const col = cssVar(engine.css);
-    for (let i = 0; i < N; i++) {
-      if (!st.present[i]) continue;
-      const n = D.nodes[i], r = 1.8 + 2.4 * Math.sqrt(st.kin[i]);
+    const surface = '#fbf7ee';
+    // Smallest first, so hubs land on top instead of being buried, and every
+    // circle gets a background-coloured rim so overlapping ones stay countable.
+    const order = [];
+    for (let i = 0; i < N; i++) if (st.present[i]) order.push(i);
+    order.sort((a, b) => st.kin[a] - st.kin[b]);
+    for (const i of order) {
+      const n = D.nodes[i], k = st.kin[i];
+      const r = k > 0 ? 1.6 + 1.75 * Math.sqrt(k) : 1.5;
       g.beginPath(); g.arc(X(px(n)), Y(py(n)), r, 0, 6.284);
-      g.fillStyle = st.kin[i] > 0 ? col : cohortColor(n);
-      g.globalAlpha = st.kin[i] > 0 ? 0.9 : 0.4;
+      g.fillStyle = k > 0 ? col : cohortColor(n);
+      g.globalAlpha = k > 0 ? 0.88 : 0.35;
       g.fill();
+      if (k >= 4) {
+        g.globalAlpha = 1; g.lineWidth = 1; g.strokeStyle = surface; g.stroke();
+      }
       if (hover.node === i) {
         g.globalAlpha = 1; g.lineWidth = 2;
         g.strokeStyle = cssVar('--ink'); g.stroke();
@@ -218,36 +227,51 @@
     prevRanks = cur;
   }
 
-  /* ---------- degree distribution ---------------------------------------- */
+  /* ---------- degree distribution, as a CCDF ------------------------------ *
+   * P(K >= k), not a binned histogram of P(k). With 303 nodes a histogram of
+   * the raw degrees is mostly a hump at k = 1-3 and then single-node noise out
+   * in the tail, which is an artefact of the binning rather than a property of
+   * the network. The CCDF uses every node at every k, needs no bins, and a
+   * heavy tail reads as a straight falling line.
+   * ----------------------------------------------------------------------- */
   function dist(states) {
     const cv = document.getElementById('p-dist');
-    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = 210;
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = 265;
     cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
     const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-    const L = 34, R = 10, T = 10, B = 26;
-    const lx = x => L + (Math.log10(x + 1) / Math.log10(120)) * (w - L - R);
-    const ly = p => T + (1 - (Math.log10(p) + 3) / 3) * (h - T - B);
+    const L = 40, R = 12, T = 12, B = 30, KMAX = 150, PMIN = 0.002;
+    const lx = k => L + (Math.log10(k) / Math.log10(KMAX)) * (w - L - R);
+    const ly = p => T + (1 - Math.log10(p / PMIN) / Math.log10(1 / PMIN)) * (h - T - B);
 
     g.strokeStyle = cssVar('--grid-line'); g.lineWidth = 1;
     g.beginPath(); g.moveTo(L, T); g.lineTo(L, h - B); g.lineTo(w - R, h - B); g.stroke();
     g.fillStyle = cssVar('--muted'); g.font = '10px ui-sans-serif, system-ui';
     [1, 10, 100].forEach(v => g.fillText(String(v), lx(v) - 3, h - B + 13));
-    ['1', '.1', '.01'].forEach((s, i) => g.fillText(s, 4, ly(Math.pow(10, -i)) + 3));
-    g.fillText('links pointing in', w / 2 - 34, h - 3);
+    [['100%', 1], ['10%', 0.1], ['1%', 0.01]].forEach(([s, v]) =>
+      g.fillText(s, 6, ly(v) + 3));
+    g.fillText('links pointing in (k)', w / 2 - 44, h - 4);
 
     for (const e of ENGINES) {
-      const st = states[e.key], cnt = {};
-      let tot = 0;
-      for (let i = 0; i < N; i++) {
-        if (!st.present[i]) continue;
-        cnt[st.kin[i]] = (cnt[st.kin[i]] || 0) + 1; tot++;
+      const st = states[e.key];
+      const degs = [];
+      for (let i = 0; i < N; i++) if (st.present[i]) degs.push(st.kin[i]);
+      if (!degs.length) continue;
+      const tot = degs.length, cnt = new Map();
+      for (const d of degs) cnt.set(d, (cnt.get(d) || 0) + 1);
+      const maxK = Math.max(...degs);
+      let tail = 0;
+      const pts = [];
+      for (let k = maxK; k >= 1; k--) {
+        tail += cnt.get(k) || 0;
+        if (tail > 0) pts.push([k, tail / tot]);
       }
-      const pts = Object.keys(cnt).map(Number).sort((a, b) => a - b)
-        .map(k => [k, cnt[k] / tot]).filter(p => p[1] > 0.0009);
+      pts.reverse();
+      const vis = pts.filter(p => p[1] >= PMIN && p[0] <= KMAX);
+      if (vis.length < 2) continue;
       g.strokeStyle = cssVar(e.css); g.lineWidth = 2;
       g.beginPath();
-      pts.forEach((p, i) => i ? g.lineTo(lx(p[0]), ly(p[1])) : g.moveTo(lx(p[0]), ly(p[1])));
+      vis.forEach((p, i) => i ? g.lineTo(lx(p[0]), ly(p[1])) : g.moveTo(lx(p[0]), ly(p[1])));
       g.stroke();
     }
   }
@@ -255,11 +279,11 @@
   /* ---------- C over time ------------------------------------------------- */
   function tauChart() {
     const cv = document.getElementById('p-tauc');
-    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = 210;
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = 265;
     cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
     const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-    const L = 34, R = 10, T = 12, B = 26, lo = 0.42, hi = 0.95;
+    const L = 40, R = 12, T = 12, B = 30, lo = 0.44, hi = 0.82;
     const X = i => L + (i / (YEARS.length - 1)) * (w - L - R);
     const Y = v => T + (1 - (v - lo) / (hi - lo)) * (h - T - B);
 
@@ -274,7 +298,7 @@
     g.strokeStyle = cssVar('--grid-line'); g.lineWidth = 1;
     g.beginPath(); g.moveTo(L, T); g.lineTo(L, h - B); g.lineTo(w - R, h - B); g.stroke();
     g.fillStyle = cssVar('--muted'); g.font = '10px ui-sans-serif, system-ui';
-    [0.5, 0.6, 0.7, 0.8, 0.9].forEach(v => g.fillText(v.toFixed(1), 4, Y(v) + 3));
+    [0.5, 0.6, 0.7, 0.8].forEach(v => g.fillText(v.toFixed(1), 8, Y(v) + 3));
     g.fillText(String(YEARS[0]), L - 8, h - B + 13);
     g.fillText(String(YEARS[YEARS.length - 1]), w - R - 26, h - B + 13);
     g.fillText('arrival shuffle', L + 6, Y(0.5) - 5);
