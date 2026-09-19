@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 3: The Marvel Speedrun</title>
+<meta name="description" content="Try to get from one Marvel character to another using only Wikipedia links. You only get three choices at each step.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="assets/week3.css">
+<noscript><style>
+  .loading { display: none; }
+  .widget .controls, .widget #g-app, .widget-actions { display: none; }
+  .widget::after {
+    content: "This game is interactive and needs JavaScript.";
+    display: block;
+    font-size: 0.83rem;
+    color: var(--muted);
+  }
+</style></noscript>
+</head>
+<body>
+
+<nav class="post-nav">
+  <a href="../index.html">&larr; All weeks</a>
+  <span class="tag">02805 · Jasper &amp; Bram</span>
+</nav>
+
+<header class="post-header">
+  <div class="pills">
+    <span class="pill pill--green">Week 3 · Paths &amp; centrality</span>
+    <span class="pill pill--white">229 characters · the graph's strongly connected component (SCC)</span>
+  </div>
+  <h1>The Marvel speedrun.</h1>
+  <p class="lede">
+    This game is a <strong>Wikipedia speedrun</strong>. You click from one
+    article to the next using only the links on the page, as fast as you
+    can. It only uses the <strong>strongly connected component</strong> of
+    week 1's Marvel network: the 229 characters who can all reach each
+    other by following links. That means no dead ends, and it only gives
+    you three link choices at each step, so the game stays fair.
+  </p>
+
+  <div class="stat-row">
+    <div class="stat"><b>229</b><span>characters you can play</span></div>
+    <div class="stat"><b>3.36</b><span>average steps between two characters</span></div>
+    <div class="stat"><b>10</b><span>most steps ever needed</span></div>
+  </div>
+</header>
+
+<section class="wide">
+  <div class="widget">
+    <div class="widget-head">
+      <h3>Play</h3>
+      <div class="widget-actions">
+        <button id="g-help" class="ghost" type="button">How to play</button>
+        <button id="g-caveats" class="ghost" type="button">Caveats</button>
+      </div>
+    </div>
+    <p class="hint">
+      Click a card to follow that link. Try to reach the target.
+    </p>
+
+    <p class="loading" id="g-loading">Loading the network&hellip;</p>
+
+    <div id="g-app" data-needs-js hidden>
+      <div class="run-header">
+        <div class="run-endpoints">
+          <div class="endpoint">
+            <div class="endpoint-art" id="g-start-art"></div>
+            <div class="endpoint-info">
+              <span class="endpoint-label">Start</span>
+              <b id="g-start"></b>
+              <p class="endpoint-blurb" id="g-start-blurb"></p>
+            </div>
+          </div>
+          <span class="endpoint-arrow">&rarr;</span>
+          <div class="endpoint">
+            <div class="endpoint-art" id="g-target-art"></div>
+            <div class="endpoint-info">
+              <span class="endpoint-label">Target</span>
+              <b id="g-target"></b>
+              <p class="endpoint-blurb" id="g-target-blurb"></p>
+            </div>
+          </div>
+        </div>
+        <div class="run-meta">
+          <div><b id="g-par"></b><span>par</span></div>
+          <div><b id="g-hops"></b><span>hops</span></div>
+        </div>
+      </div>
+
+      <div class="route" id="g-route"></div>
+      <div class="cards" id="g-cards"></div>
+      <div class="result" id="g-result" hidden></div>
+
+      <div class="controls">
+        <button class="primary" id="g-new">New characters</button>
+        <button id="g-retry">Try again</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="post">
+  <p style="margin-bottom:4rem">
+    <a href="../index.html">&larr; Back to all weeks</a>
+  </p>
+</main>
+
+<div class="tip" id="tip"></div>
+
+<div class="modal-overlay" id="helpOverlay">
+  <div class="modal">
+    <h2>It's a Wikipedia speedrun</h2>
+    <p>
+      In the real version, sometimes called a <strong>wikirace</strong>,
+      you click from one Wikipedia article to another. You can only use
+      the links on the page, and you try to do it as fast as you can. This
+      game works the same way, but it only uses 229 Marvel characters from
+      week 1. These are the characters that can all reach each other by
+      following links.
+    </p>
+    <ul>
+      <li>At each page, you see up to <strong>3 possible links</strong>.
+        You never see the whole article, so you cannot just scan it for
+        the best link.</li>
+      <li>At least one of the 3 links always brings you
+        <strong>closer</strong> to the target. Sometimes more than one
+        does. Any link that does not is a decoy.</li>
+      <li>Click a link to follow it. Keep going until you reach the
+        target.</li>
+      <li>At the end, your number of clicks is compared to
+        <strong>par</strong>. Par is the shortest path. The game finds it
+        with a method called breadth-first search as soon as the round
+        starts.</li>
+    </ul>
+    <p class="intro-note">
+      Stuck? Use <strong>Try again</strong> to restart the same round. Use
+      <strong>New characters</strong> to get a new pair.
+    </p>
+    <button id="helpClose" type="button">Got it</button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="caveatsOverlay">
+  <div class="modal">
+    <h2>Is this fair?</h2>
+    <p>
+      Mostly, but there is one thing worth knowing. The
+      <strong>Connected to</strong> text under each card lists only 3 of
+      that character's real links on Wikipedia. Some characters have over
+      100 links, so we only show the 3 that are the rarest, meaning the
+      least likely to be a big hub like Spider-Man.
+    </p>
+    <ul>
+      <li>Because of this, the text will not always mention the link that
+        got you to a card. It also will not always mention the link that
+        would be the best next move.</li>
+      <li>Read it as background information about the character, not as a
+        hint about which card to pick.</li>
+      <li>The cards themselves are picked automatically. If 3 or fewer
+        links would move you closer to the target, all of them are
+        shown. Some characters have more than 3 such links at once
+        (Spider-Man often does); when that happens, only 3 can fit on
+        the board, so one you might expect can still be left out.</li>
+      <li>Sometimes you will only see 1 or 2 cards instead of 3. That
+        happens when a character's real Wikipedia page has few outgoing
+        links. It is a property of the real network, not a bug.</li>
+    </ul>
+    <button id="caveatsClose" type="button">Got it</button>
+  </div>
+</div>
+
+<footer>
+  02805 Social graphs and interactions &middot; DTU
+</footer>
+
+<script defer src="assets/week3.js"></script>
+</body>
+</html>
