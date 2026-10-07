@@ -217,3 +217,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Course-page text corpus — lives on the `corpus` branch, kept off the
+# published site. Regenerate with data/extract_text.py.
+/data/
