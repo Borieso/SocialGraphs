@@ -1,0 +1,617 @@
+Week 6 of 8 · Language half
+
+From counts to meaning
+
+Last week we took the first steps of turning language into math. This week we take the counts from last week and ask what those numerical representations can tell us about similarity and meaning, first for documents and then for words.
+
+Before class
+
+Bring. The same setup as last week: laptop, Python + Jupyter, an agentic coding tool, and your week 5 notebook.
+
+Tools. The same marvel_pages.zip from the course data page. New this week: scikit-learn (you may have it already), scattertext and gensim, all pip install-able.
+
+As always. Work this page from top to bottom. The day splits in two, first documents and then words, so keep those two objects separate in your head.
+
+A quick status. You have now learned to represent language with numbers using tokens, counts and document-term matrices. These tools turned language into something a computer can store and compare. But we ended on two problems.
+
+The first one you saw in the lookalikes explorable. With raw counts, the, and and of dominated every comparison, and the pages only started to find their real neighbors once we threw a stopword list at them by hand. The second was the dog, puppy and democracy example. When every word has its own coordinate, every word is exactly equally far from every other word. A count vector does not know what a word means, and a Bag-of-Words representation can miss that two documents are expressing almost the same underlying concept... simply because they use different words.
+
+One way to get closer to meaning is to look at context. Words that occur in similar surroundings often have something in common, and documents that use language in similar ways may also be related even when they do not contain exactly the same words.
+
+This week we use that idea at two levels. First, we represent entire documents and compare which pages are similar, which terms distinguish groups of pages, and which themes recur across a corpus. Then we change the object and represent individual words through the contexts in which they occur.
+
+A useful way to remember the split is that documents are represented by their words; later, words are represented by their contexts.
+
+As in week 5, most sections today end with a short Python example. They are there to be run: put them in Jupyter, change a number, and watch what happens.
+
+1 · Documents need better weights
+
+Raw word counts reward frequent words. That sounds reasonable until the same boring words are frequent everywhere. A term can appear many times on one page and still tell us very little about what makes that page distinctive (if the same term also appears on almost every other page).
+
+That was exactly what we saw in the lookalikes explorable, and removing stopwords by hand was a blunt fix: somebody has to write the list, and it only knows about English, not about Marvel.
+
+TF-IDF tackles the same problem, but using the data itself. It combines two pieces of information: how frequent a term is within each document, and how unusual that term is relative to the full collection of documents.
+
+The TF-IDF idea comes from information retrieval. Imagine searching for the superpower. A document should not rank highly simply because it contains the hundreds of times. The word superpower is much more informative because it occurs in fewer documents. TF-IDF therefore gives a term a high weight when it occurs often in a particular document, but discounts it when it also occurs in many other documents. (If you built last week's 20-line search engine, this is the fix it was missing.)
+
+Read the quick overview below, focusing on the sections about TF-IDF, but feel free to read more if you find it interesting:
+
+Read
+
+Jurafsky & Martin, Chapter 11, Information Retrieval and Retrieval-Augmented Generation, sections 11.1.1–11.1.3. Focus on documents as vectors, TF-IDF and cosine scoring. The rest of the retrieval chapter can wait.
+
+There are several (closely related) ways to define TF-IDF, all implementing subtly different versions of the same general idea. Here we use a simple version where TF (term frequency) is measured relative to document length and the IDF (inverse document frequency) is defined based on how many documents contain the term in question. Let us first look at each part separately. Term frequency measures how common a term t is inside a particular document d:
+
+Here, is simply the number of times term t appears in document d, while is the total number of tokens in that document. Dividing by document length means that seeing a word 10 times in a short page counts for more than seeing it 10 times in a very long page.
+
+The second part asks how common the term is across the entire corpus:
+
+Here, N is the total number of documents in the corpus, and is the number of those documents that contain the term t. If a word appears in almost every document, is large and its IDF becomes small. If it appears in only a few documents, its IDF becomes larger.
+
+Take three tiny documents:
+
+D1: The mutant superpower was wild and dangerous.
+
+D2: The superpower felt wild and very dangerous.
+
+D3: The Avengers assembled before the battle.
+
+The word the appears in all three documents, so its document frequency is 3. Notice that document frequency counts documents, not total occurrences: the occurs four times across the corpus, but it is still present in 3 of 3 documents. Its IDF is therefore
+
+So the receives no weight from IDF. superpower appears in two of the three documents, so
+
+mutant appears only in D1, so it receives the largest IDF of the three:
+
+Here and in the explorable, log is the natural logarithm. Other log bases rescale the values but do not change their ordering.
+
+Now we can calculate the actual TF-IDF weights. D1 and D2 each contain 7 tokens, and superpower occurs once in each, so
+
+Multiplying TF by IDF gives
+
+mutant also occurs once in the 7-token D1, but because it appears in only one document its IDF is larger:
+
+For the, IDF is 0, so its TF-IDF weight is 0 in every document regardless of how often it occurs there. This is exactly what we want: the representation can distinguish a word that is common in one particular document from a word that is common everywhere.
+
+In general, we multiply the two parts:
+
+In summary: A term has a high TF-IDF score when it appears relatively often in one document but is relatively uncommon across the rest of the corpus. Common words that occur everywhere receive little weight, while words that help distinguish one document from the others receive more.
+
+I created the explorable below so you can visualize and play with these quantities directly.
+
+Start with the superpower and move from counts to TF-IDF. Then switch to mutant superpower. Watch how the term weights and the document ranking change.
+
+With the Marvel corpus, the setup is the same, only larger. Each of the 303 character pages is one document, and each vocabulary term gets a weight that depends both on how often it appears on that page and on how widely it appears across the full collection.
+
+Cosine similarity, a second look. You met cosine similarity last week in the lookalikes explorable. Now that the vectors are full of weights rather than counts, it is worth slowing down to see why cosine similarity is the right way to compare them.
+
+One option would be ordinary Euclidean distance, but that is awkward for text because the length of a document can dominate the comparison. A long article and a short paragraph about the same thing can end up far apart simply because one contains more words.
+
+Cosine similarity compares the direction of two vectors. For vectors A and B,
+
+The dot product is large when the same dimensions contain large values in both vectors. Dividing by the lengths of the two vectors removes the effect of their overall magnitude, so what remains depends only on the angle between them. This is why multiplying a document vector by 10 does not change its cosine similarity with any other vector. Its length changes, but its direction does not. Two vectors pointing in exactly the same direction have cosine similarity 1. For the non-negative TF-IDF vectors we use here, the cosine similarity is never below 0, and vectors with no weighted vocabulary in common have similarity 0.
+
+The figure below uses the TF-IDF vectors from the three sentences I constructed above.
+
+The arrows show the angle between the full high-dimensional vectors. They are drawn in two dimensions only so that we can see that angle.
+
+Compare D1 with D2, then D1 with D3. Finally scale one vector without changing its direction and watch what happens to the cosine.
+
+Python example. The definitions on this page are short enough to write yourself, and doing so once is the best way to both understand and trust them. Here they are, run on the three sentences:
+
+Those are the numbers from the worked example above. Now build the full vectors and compare them:
+
+D1 and D3 share only the, and the has weight 0, so their cosine is exactly 0. Now do what everybody actually does, and ask scikit-learn:
+
+scikit-learn says D1 and D3 are at 0.139, not 0. Nobody made a mistake. Print vectorizer.idf_ and you will see that the gets an IDF of 1, not 0, because scikit-learn uses a slightly different definition of both TF and IDF. Exercise 6.2 asks you to find out exactly what it does, and the Goodies have the answer when you are done. The lesson is the same as with CountVectorizer last week: a library makes choices for you, and you only see them if you check its output against a case you can do by hand.
+
+Documentation: scikit-learn's text feature extraction.
+
+Back to the lookalikes. Now I present to you last week's explorable with one more button. Tadaaa! The TF-IDF version keeps every stopword and uses the definitions above.
+
+Start with Wolverine, where last week left off, and switch from stopwords removed to TF-IDF. Then pick Storm and look hard at her closest page. Finally, switch to closest unlinked pairs.
+
+Even with no stopword list at all, TF-IDF does better than the hand-made list did. On average, 4.0 of each page's ten textual neighbors are also linked to it in the network, against 2.8 with stopwords removed, 1.9 with raw counts, and 0.3 for ten random pages. The IDF solved the stopword issue, and it also caught stopwords that only exist in our specific context. The words Marvel and Comics occur on all 303 pages, so their weight is exactly 0, just like the, although no English stopword list has ever heard of them.
+
+But it's not perfect. Look at Storm. Her closest page is the Human Torch, and the words behind the match are storm and storm's. The Human Torch is Johnny Storm. TF-IDF rewards rare words, and a surname is a very rare word, so it cannot tell a name from a meaning. The closest unlinked pair in the whole corpus makes the same point (Emma Frost and Jack Frost). Just under it sits a cluster of short pages about the members of Strikeforce: Morituri, a team whose members share a comic, its creators, and a rare word. The network knows the team, but many pairs of teammates never link to each other directly, and the text puts them together anyway. That one is real structure. Telling those two kinds of match apart is your job, not the vector's.
+
+What makes a page distinctive. TF-IDF can also be read one page at a time. The highest-weighted words on a page are its fingerprint: the words it uses a lot and the rest of the corpus rarely does. With names kept, the fingerprints are mostly names, just as Storm's match was. Take the names out and what is left starts to describe the character.
+
+Start with Wolverine and switch to names removed. Click adamantium and follow it to the other pages that use it. Then pick Storm, remove the names, and ask why her and she make her list.
+
+6.1 — TF-IDF and cosine, by hand Learn
+
+Start on paper. The point is to understand the weights and the geometry before a library calculates them for you.
+
+For D1, D2 and D3 above, calculate and IDF for the, superpower and mutant. Explain in one sentence why the gets IDF 0.
+
+Calculate the TF-IDF weight of superpower in D1 and D2 and of mutant in D1. Use the definitions on this page and keep at least three decimal places while you work.
+
+Now forget the documents for a moment. Take, and. Calculate and. Draw the three vectors and check that the numbers agree with the picture.
+
+Multiply A by 10 and calculate its cosine with B again. Explain why the answer does not change even though the vector is now much longer.
+
+In your own words, explain what TF-IDF changes compared with raw counts and what cosine similarity adds once documents have become vectors.
+
+6.2 — Document similarity on Marvel, as code Tool
+
+Now scale the same ideas up. Let your agent help with the implementation, but keep the small examples from 6.1 beside you as checks.
+
+Reproduce the three teaching documents in code. Implement the TF, IDF and TF-IDF definitions from this page and verify at least three values against your hand calculations from 6.1.
+
+Now run scikit-learn's TfidfVectorizer on the same three documents. Its numbers will not match yours. Using its documentation and vectorizer.idf_, find every choice it makes differently from this page, and find the settings that bring it as close to the page as it will go. Can you make it match exactly?
+
+Implement cosine similarity once yourself, then compare the result with a library implementation such as sklearn.metrics.pairwise.cosine_similarity.
+
+Build TF-IDF vectors for the 303 Marvel pages. State the preprocessing choices you made before you calculate any similarities.
+
+Find the five most similar pairs of character pages. Open the underlying text for every pair before you explain why they are close. Find at least one pair where the similarity is driven by something less interesting than shared character meaning, for example repeated Wikipedia phrasing or formatting.
+
+Pick one character and put three neighbor lists side by side: its closest pages under last week's counts with stopwords removed, its closest pages under your TF-IDF, and its neighbors in the Wikipedia link network. What does each definition of "neighbor" capture that the others miss? Find one match driven by a shared name rather than a shared story, like Storm and the Human Torch.
+
+2 · Compare groups of documents
+
+The network part of the course gave us structural communities without reading a single page. Text lets us ask what those communities are actually talking about.
+
+"Scattertext" is a tool for comparing two labeled collections of text term-by-term. It counts how often words or phrases are used in each corpus and allows the user to see shared and distinctive language at the same time. The original Scattertext package and examples contain several ways of scoring and displaying those differences.
+
+I made the teaching view below from the 2012 US convention speech sample corpus that comes with the Scattertext package, following the same two-corpus comparison that Scattertext is built for. Each dot is one term. The horizontal axis shows Republican uses per 10,000 words and the vertical axis shows Democratic uses per 10,000 words. A term used at about the same rate in both groups sits near the diagonal. A term that is relatively more common in one group moves away from the diagonal, toward that group's axis. The axes are log-scaled so the many less frequent terms do not all collapse into the same corner, while the tick labels still show uses per 10,000 words.
+
+The package saves you a lot of bookkeeping and gives you useful interactive tools. But the basic idea is something you could easily recreate yourself, especially with agentic help: count terms in two corpora, turn the counts into comparable rates, plot one rate against the other, and remember to go back to the underlying text and have a closer look before you decide what a term means.
+
+Search for a term or click a point. Terms near the diagonal are used at similar rates; terms above it are relatively more common in the Democratic speeches, while terms below it are relatively more common in the Republican speeches.
+
+Extra feature: Scattertext compares how often two groups use each word. With my group I built a variation, the dialectogram, that compares how two groups use the same word, based on the word embeddings we look at in the second half of this page.
+
+Python example. The convention speeches ship with the package, so the teaching figure takes a handful of lines to rebuild (pip install scattertext first).
+
+Open conventions.html in a browser. For Marvel, the only thing that changes is the DataFrame: one row per page, a text column from marvel_pages, and a category column holding each page's network community. If the install fails in your existing environment, a clean virtual environment with Python 3.11 or 3.12 is usually faster than untangling old dependencies.
+
+Documentation: the Scattertext repository and examples.
+
+6.3 — Compare two corpora with Scattertext Tool
+
+Use the Marvel data and make the comparison your own. The package can do the bookkeeping; the interpretation is still yours.
+
+Before you build anything, explain how the teaching figure above is set up. What does one dot represent? What do the horizontal and vertical axes measure? What does the diagonal mean, and why are the axes log-scaled?
+
+Choose two reasonably large structural communities from the Marvel network (Louvain, as in week 4, run on the week 1 network). Before you run anything, write down three words or phrases you expect to distinguish them and why.
+
+Build a Scattertext comparison of the text from those two communities. Start with scattertext, but feel free to use your favorite agent to change the layout, labels or interaction if you can make the result easier to read. If you would rather recreate the core comparison yourself, that is also fine, as long as you can explain what your axes and term positions mean.
+
+Find three terms close to the diagonal and three terms clearly pulled toward one community. For each distinctive term, open at least one page where it occurs and decide whether the term really tells you something about the community.
+
+Find one term that initially looks informative but becomes less convincing after you inspect the underlying pages. What created the misleading signal?
+
+Change one modeling or display choice, for example the minimum term frequency, whether repeated uses within a document count, or which terms are labeled. Which conclusions stay the same and which change?
+
+Finish with two sentences: what question does your Scattertext figure answer well, and what question can it not answer from word frequencies alone?
+
+3 · Find recurring themes
+
+TF-IDF and Scattertext describe documents mainly through individual terms. Sometimes several different words are part of a broader recurring pattern. election, voter, parliament, minister and government, for example, can all contribute to a linguistic theme we might interpret as politics even if no single politics-related document contains all of them.
+
+Topic modeling is what we call a large family of methods designed to find patterns of words that belong together in a collection of documents. The basic goal of topic modeling is to move away from the dependence on individual words and instead find recurring groups of related words: words that tend to appear in the same documents.
+
+These topics (groups of related words) can help us summarize what's going on in a large corpus, compare documents, or ask whether different parts of the corpus tend to discuss different things.
+
+Read (Optional)
+
+Skim David Blei's classic Probabilistic Topic Models. Read it for the conceptual picture: recurring topics are distributions over words, and documents can contain several topics at once. You do not need the inference machinery for this course, so only dig into that part if you're interested.
+
+There are many different topic-modeling methods. They all have strengths and weaknesses, and different methods define a "topic" in different ways. Some work directly on the document-term matrix: non-negative matrix factorization (NMF), for example, splits it into a small set of word groups and records how strongly each document uses each group. Newer methods start from document embeddings instead, cluster similar documents, and then describe each cluster by its most characteristic words; next week's BERTopic is one of these. Here we go deeper with Latent Dirichlet Allocation, LDA, because it keeps two things especially clear: what a topic is, and what a document is made of.
+
+In LDA, a topic is a probability distribution over words, and a document is a mixture of topics. Imagine a topic whose high-probability words are mutant, school, gene, telepath and sentinel. We might decide to call it mutants, but that label comes from us. The model only gives us the probabilities. A particular document might then be 80% of that topic and 20% of another topic.
+
+LDA is a generative model: it tells a step-by-step story of how the documents could have been produced. The generative story behind LDA is useful in order to understand what the model assumes. For every word position in a document, we basically imagine that we first choose a topic according to that document's topic mixture and then choose a word according to that topic's word distribution. In real data we only observe the words. LDA works backwards and estimates the hidden topic-word distributions and document-topic mixtures that could plausibly have produced them.
+
+The two levels are easy to mix up at first, so the explorable below puts them next to each other. Choose a document and first look at its mixture across topics. Those probabilities tell you how strongly each topic contributes to that document. Then select one of the topics and inspect its distribution over words. Those probabilities tell you which words are most characteristic of the topic. Keep track of what each distribution sums over: topics for a document, or words for a topic.
+
+Change the document and read both levels of the model: first the document's mixture over topics, then the selected topic's distribution over words. Remember that the topic names are human interpretations of the word distributions.
+
+This also means that topics are not facts waiting inside the corpus to be discovered. You choose how many topics the model should look for (this is called model selection and for my money one of the hardest things in the universe, so don't spend too much time on it). And preprocessing, random initialization and the corpus itself can all affect the result. A list of top words is therefore only the beginning of the interpretation. You should also inspect the documents with high weight on that topic before you decide what it means.
+
+Python example. scikit-learn fits LDA on the same kind of count matrix you built with CountVectorizer last week. LDA wants counts, not TF-IDF weights, because its generative story is about drawing words.
+
+min_df=5 drops words that occur on fewer than five pages, and max_df=0.5 drops words that occur on more than half of them, so both are modeling choices of exactly the kind this section warns about. Each row of theta sums to 1, since it is a document's mixture, and theta[names.index("Spider-Man")] is the document half of the explorable above.
+
+When we ran this, most of the eight topics came out as lists of character names: a Spider-Man topic (spider, venom, symbiote, peter, gwen), an X-Men topic (jean, phoenix, cyclops, frost), and so on. That is not a bug. Wikipedia pages about characters are full of names, and the model has no idea that we were hoping for themes. Change random_state from 0 to 1 and the Spider-Man and X-Men topics survive while most of the others reshuffle, which is the stability check that exercise 6.5 asks you to do properly.
+
+Take the names out. The fix is a preprocessing choice, not a better model. Treat every word that is capitalized in most of its uses as a name, add those to the stopwords, and keep only tokens made of letters:
+
+Refit with the same settings and themes start to appear: vampires and gods (blood, vampire, god, gods), mutants (mutant, mutants, energy), symbiotes (symbiote, suit, host) and combat (shield, government, combat, trained). A new artifact appears too: a topic made of Wikipedia's media boilerplate (voiced, playable, list, best), because the pages of popular characters end with sections on their films and video games. Removing the names did not reveal the "true" topics; it changed what the model could see. And here's the deep wisdom that we draw from this example: the preprocessing is part of the model.
+
+Documentation: scikit-learn's LatentDirichletAllocation.
+
+6.4 — Topic models, by hand Learn
+
+Keep the two distributions separate: topics distribute probability over words, while documents distribute probability over topics.
+
+In the explorable, choose the Mutants topic. If mutant has probability 0.16 and telepath has probability 0.09, explain what those two numbers mean. Do they say that a document containing mutant has a 16% chance of being about mutants?
+
+Suppose a document has topic mixture [0.70 mutants, 0.20 crime, 0.10 space]. Explain what each number means and why the three numbers must sum to 1.
+
+Imagine another document with [0.35 mutants, 0.35 crime, 0.30 space]. Which document is easier to summarize with one topic label, and why?
+
+The model returns the top words mutant, school, gene, telepath, sentinel. Who decided that this topic should be called mutants: the model or you? What would you inspect before accepting that label?
+
+What do you expect to happen if the same corpus is fitted with 3 topics and then with 20 topics? Give one reason why neither number is automatically the "correct" answer.
+
+6.5 — Topic models on Marvel, as code Tool
+
+Use LDA as a model to inspect, not a machine that names the corpus for you.
+
+Fit an LDA model to the individual Marvel pages using a count-based document-term matrix. Start with a deliberately small number of topics and record the preprocessing choices, number of topics and random seed. Fit it once with and once without the name filter above.
+
+For every topic, inspect its highest-probability words and at least three pages with high topic weight before you give the topic a short human-readable label. If a topic is incoherent, say so instead of forcing a name onto it.
+
+Pick one Marvel page and visualize its mixture over topics. Then pick its strongest topic and visualize the highest-probability words for that topic, following the structure of the explorable above.
+
+Refit the model after changing the number of topics or the random seed. Which topics are fairly stable, and which split, merge or disappear? What does that tell you about treating a fitted topic as a fact?
+
+Compare topic mixtures across two network communities from the first half of the course. Do the structural groups also differ in what their pages talk about? Show one compact figure and inspect at least one page that does not fit the simple story.
+
+Finally, a sanity check on a corpus where LDA is known to work. scikit-learn ships the classic 20 Newsgroups collection, about 11,000 posts from 20 online discussion groups: fetch_20newsgroups(subset="train", remove=("headers", "footers", "quotes")) from sklearn.datasets. Fit LDA with 10 topics using the same code. Which topics match a discussion group, and which would you refuse to name? What does the comparison tell you about where the difficulty with Marvel lies: in the method or in the corpus?
+
+4 · Now let's think about words
+
+So far the rows we cared about represented documents. Now the question changes. How can a vector represent the meaning of a word?
+
+Last week's answer was disappointing. In last week's one-hot vectors a word gets its own coordinate and nothing else, so dog is exactly as close to puppy as it is to democracy: cosine 0 in both cases. To do better, a word's vector has to be built from something other than its identity.
+
+One way to make the intuition visible is to give you a word you may not know and let the surrounding sentences do the work. Take tezgüino.
+
+Read these four sentences
+
+A bottle of tezgüino sits on the table.
+
+Everybody likes tezgüino.
+
+Tezgüino makes you drunk.
+
+We make tezgüino from corn.
+
+I think you have a pretty good feel for tezgüino from these examples. Pretty cool, right?
+
+This is a classic example in distributional semantics. Lin (1998) uses a slightly modified version of an example from Nida (1975, p. 167) to show how the meaning of an unfamiliar word can be inferred from context. Nobody gave you a dictionary definition here, but you inferred that tezgüino is some kind of alcoholic drink from the company the word keeps.
+
+That is the intuition behind the distributional hypothesis: words that occur in similar contexts tend to have similar meanings. J. R. Firth's famous formulation is "You shall know a word by the company it keeps."
+
+Read
+
+Jurafsky & Martin, Chapter 5, Embeddings, sections 5.1–5.4. Read for the distributional hypothesis, count-based word vectors and cosine similarity. Lena Voita's Word Embeddings notes are a useful visual companion.
+
+To turn the intuition into cold, hard math, choose a context window around every occurrence of a target word and count the neighboring words. Stack those rows and you have a word-context matrix. In that matrix each row is a word, while each column records how often a particular context word appeared near it.
+
+I made a small version of that matrix below. It uses the tezgüino sentences together with a few similar sentences about wine and bourbon. Change the context window and watch which words enter the rows. Then compare the rows for the three target words.
+
+Change the context window and select a target row. Each cell counts how often that context word appears near the target in this tiny corpus. Similar rows mean that the words have appeared in similar surroundings.
+
+Importantly, the size of the context window is part of the model. A narrow window pays more attention to immediate linguistic context. A wider window tends to pick up broader topical associations. Two words with similar rows appeared in similar surroundings, and we can once again use our old friend, the cosine similarity, to compare them.
+
+The object has changed, but the recipe should feel familiar: define the dimensions, build a vector for each object, then compare the vectors.
+
+Python example. A word-context row is a Counter over the words inside the window, added up over every occurrence of the target:
+
+Every context word in the tezgüino row also turns up around wine or bourbon, which is the matrix version of the guess you made from the four sentences. Try a window of 2 and watch bottle, you and corn arrive; the overlap still holds.
+
+5 · Raw co-occurrence is not enough
+
+Raw co-occurrence has the same problem as raw document counts. A word such as the occurs near almost everything. Pointwise mutual information, PMI, asks whether a word-context pair occurs more often than we would expect, if the two were independent:
+
+PMI is conventionally written with a base-2 logarithm because of the connection to information theory (see also Jurafsky & Martin and the explorable below). But the base isn't really important. As is the case with IDF, the base only rescales the values: zero stays zero and the signs do not change.
+
+If w and c occur together exactly as often as independence would predict, the ratio in the PMI equation is 1 and PMI is 0. A positive value means the pair occurs together more often than expected. A negative value means it occurs together less often than expected. If you start from a word-context count matrix, you can estimate these probabilities from the counts: the cell gives the joint count for w and c, the row and column totals give the marginal counts, and the sum of the whole matrix gives the total number of counted word-context pairs.
+
+Positive PMI, PPMI, keeps the positive values and replaces negative ones with zero:
+
+When we use PPMI, common but uninformative contexts lose influence, while unexpectedly strong associations stand out.
+
+Select a word, then switch the matrix from counts to PPMI. Watch which context dimensions shrink, which grow, and whether the nearest neighbor changes.
+
+Python example. Here is the explorable's matrix in NumPy. The three probabilities are one line each, exactly as described above:
+
+In terms of raw counts, dog and finance have a cosine similarity of 0.72, almost entirely because both co-occur with the. But after PPMI, their cosine similarity is 0. Compare that with last week's one-hot vectors, where dog and puppy were at 0 too. In our new framework, dog and puppy stay close (0.96), and the meaningless similarity disappears. Pretty neat.
+
+Folks talk about embeddings, but you don't need big machinery to get them. What we've just put together is a count-based word embedding. Each row is a vector whose geometry reflects context. The vectors are large and sparse, and we use cosine similarity to compare words (rather than documents).
+
+6.6 — Word context and PPMI, by hand Learn
+
+Do the small calculation yourself before you ask a library to build a matrix with thousands of context dimensions.
+
+Take the sentence the puppy chased the ball through the park. For the target word chased, write down the context words for a window of 1 and then for a window of 2. What information changes when the window becomes wider?
+
+Draw a tiny word-context matrix with two target words and three context words. Choose counts so that one context is common for both target words and one context is strongly associated with only one target.
+
+From your table, compute P(w,c), P(w) and P(c) for one cell, then calculate its PMI and PPMI. Say what the sign of the PMI told you before you clipped it at zero.
+
+Explain why replacing raw co-occurrence counts with PPMI can change which word is the nearest neighbor under cosine similarity.
+
+6.7 — PPMI neighbors on Marvel, as code Tool
+
+Now make the context matrix real.
+
+Build a word-context matrix from the Marvel corpus using one explicit context-window size. Record the window size and the preprocessing choices that determine which words can become rows and columns.
+
+Compute PPMI. Pick one cell and verify it independently from the underlying counts before you trust the whole transformed matrix.
+
+Use cosine similarity to find neighbors for five words. For each word, compare the neighbors from the raw-count matrix with the neighbors from the PPMI matrix.
+
+Inspect the week 5 concordance lines for at least one convincing neighbor and one strange neighbor. Explain what the context window captured in each case.
+
+Change the context-window size and rerun one word. Did the neighbors become more syntactic, more topical, or simply noisier? Use the raw text to support your answer.
+
+6 · Learn dense word embeddings
+
+OK. So I was just proudly exclaiming that we'd gotten to embeddings in a simple way. But now we're getting to the juicy part. We're going to learn about and play around with the word embedding that changed the world and in many ways kicked off the impressive new era of language technology that we're currently living through.
+
+Count-based word vectors are high-dimensional and sparse because every possible context word is a dimension. Word2Vec takes a different route and learns much shorter, dense vectors without explicitly keeping that whole matrix.
+
+The basic trick is to turn context into a prediction task. I'm not going to give you the whole explanation here, Jurafsky and Martin do it better. But I'll tell you the two key terms to keep an eye out for:
+
+Skip-gram gives the model a center word and train it to recognize words that occur nearby.
+
+CBOW runs the prediction in the other direction: the surrounding words are used to predict the center word.
+
+As this happens again and again across a corpus, words that are useful in similar contexts tend to end up with similar vectors.
+
+Negative sampling makes the training manageable. Instead of comparing an observed word-context pair with every word in a large vocabulary, the model compares it to a small number of sampled words that did not occur in that context. That is the intuition you need here; the reading below goes further into how the vectors are actually learned.
+
+Read
+
+Continue Jurafsky & Martin, Chapter 5, Embeddings, sections 5.5–5.6. Focus on Word2Vec and Skip-gram, negative sampling, the short section on other static embeddings such as GloVe, and how embeddings can be inspected and visualized. These are deliberately older foundations for the contextual embeddings we use next week.
+
+If you prefer to build intuition visually first (I do), the StatQuest video below is the right start. StatQuest is an excellent statistics and machine-learning resource, and this video gives a very concrete picture of what Word2Vec is trying to learn. Watch it, then read.
+
+Watch for the training task rather than the finished vectors. Which word is given to the model, which word is predicted, and where do the learned numbers live?
+
+The explorable below strips the training setup down to the examples the model sees. Move the center word and the context window, switch between Skip-gram and CBOW, and resample the negative words. The point is to understand how ordinary text is turned into training examples before worrying about the neural network that learns from them.
+
+Move the context window and switch between Skip-gram and CBOW. Watch which training examples each setting creates.
+
+GloVe is another static embedding method. It learns dense vectors from global word co-occurrence statistics rather than the local prediction task used by Word2Vec. For this course, the idea it shares with Word2Vec is most important: both methods place words in a learned vector space where distance and direction can carry regularities in how words are used.
+
+It's important to realize that count-based and prediction-based embeddings are closer than they first appear. Skip-gram with negative sampling has a mathematical connection to a shifted PMI matrix. You do not need that derivation for Test 2 (the curious will find it in the Goodies). The broader point is enough: counting contexts and predicting contexts can recover related structure from the same corpus. We once again compare the dense vectors from Word2Vec and GloVe using cosine similarity.
+
+A famous intuition-building example. Aligned vectors often correspond to related words, and some relations can even appear as directions in the space.
+
+One famous example is
+
+king - man + woman ≈ queen
+
+In some trained static embedding spaces, the direction from man to king is similar to the direction from woman to queen. If we start at the vector for king, subtract the vector for man, and add the vector for woman, the resulting point can therefore land close to queen. The example is memorable because it turns an abstract vector space into something we can reason about geometrically. It does not mean that every analogy works, or that the model has learned a neat human definition of royalty or gender.
+
+The explorable below draws the idea in two dimensions. A real embedding contains many more dimensions, so focus on the subtraction, addition and relative directions rather than the exact coordinates on the page.
+
+Step through the subtraction and addition. Treat the two-dimensional drawing as a picture of the relationship, not as the real coordinates of a trained embedding.
+
+Python example. gensim trains Word2Vec in one line once the corpus is a list of tokenized sentences. On the full Marvel pages it takes about ten seconds on a laptop.
+
+We got mjolnir and odinson first, which is exactly right, and then truck, hide, torn and inevitably, which is not. (Your list may differ a little depending on your version of gensim.) That is what a corpus of 700,000 tokens gives you: the strongest associations come through, and the rest of the list is noise that looks just as confident. The cosine next to each neighbor will not warn you, which is why every neighbor list in this week's exercises ends with a trip back to the text.
+
+Pretrained static embeddings are one download away, and trying the famous analogy yourself takes one line:
+
+Now ask GloVe about hammer and you get stick, bolt, nail, thrower and discus: tools and athletics, not Thor. Neither answer is wrong. Each vector space describes the language it was trained on.
+
+Documentation: gensim's Word2Vec tutorial.
+
+A map of the Marvel universe. Word vectors can also place whole characters in a space we can read. Take each character's fingerprint from Section 1 (its most distinctive words, names removed) and average the GloVe vectors of those words, weighted by TF-IDF. Then build a direction the way king - man does: the average vector of magic, spell, sorcerer and friends minus the average vector of science, technology, experiment and friends. Projecting every character onto that direction gives a scale from science to magic, and two such scales give a map.
+
+Find Doctor Strange, Machine Man and Spider-Man, and read the words that pull each one. Switch the vertical axis to body ↔ mind and look for the telepaths. Then type your own axis: which ones give a map you can read, and which only give noise? Finally, color the points by network community: do the communities from the first half of the course also live in different parts of this map?
+
+None of these positions is a fact about the characters. Each axis is a direction somebody chose, measured with vectors trained on Wikipedia and news, applied to how Wikipedia happens to describe each character. The recipe comes from sociology: Kozlowski, Taddy and Evans used it to measure how Americans understand social class in The Geometry of Culture (2019).
+
+Bias is always there. Static embeddings also learn associations we may not want. If occupations or social groups occur in stereotyped contexts, the vectors can encode those regularities too. The map above shows it: color it by gender and switch to the war ↔ home axis, and the home end is almost all women, pulled there mostly by the words her and she. GloVe has learned that female pronouns sit closer to family and love than to soldier and mission. A single static vector also has trouble with polysemy. bank gets one location whether the sentence is about money or a river.
+
+From an AI-drafted report
+
+"LDA recovered 10 topics from the Marvel pages. Topic 3 — power, energy, cosmic, force, stone — is clearly the Cosmic Entities topic, and it accounts for 14% of the corpus. The trained embedding places hero and villain at cosine 0.81, so the model has learned that the two words mean almost the same thing." There are three flaws. Find them. Sections 3 and 6 give you everything you need, and in exercise 6.8, item 5, you will rewrite the report yourself.
+
+6.8 — Word2Vec, by hand Learn
+
+Understand the prediction examples before you train the model.
+
+For the puppy chased the ball through the park, write the Skip-gram training pairs for the center word chased with a context window of 1 and then 2.
+
+Write the corresponding CBOW training example for chased with a window of 2. Which part of the example is the input and which part is the target?
+
+Explain what negative sampling changes about the training task. Why would comparing the observed pair with every word in a huge vocabulary be expensive?
+
+Word2Vec returns a dense vector of, say, 100 or 300 numbers for each word. Explain why individual dimensions do not need an obvious human label for cosine similarity between the vectors to still be useful.
+
+Rewrite the AI-drafted report above in three honest sentences: which choices produced the topics, what one fitted solution can support, and what a high cosine between two words does and does not tell you.
+
+6.9 — Train and inspect a word embedding Tool
+
+Treat nearest-neighbor lists as outputs to check, not explanations by themselves.
+
+Train a small Word2Vec model on the Marvel corpus. Record the window size, vector dimension, minimum count, training algorithm and random seed.
+
+Inspect nearest neighbors for five words. Return to the raw text when a neighbor surprises you and decide whether the result comes from genuine usage, the small corpus, preprocessing or something else.
+
+Compare Word2Vec neighbors with the PPMI neighbors from 6.7 for three of the same words. Describe one case where they agree and one where they do not.
+
+Change one Word2Vec choice, such as window size or minimum count. Rerun the same target word and explain what changed rather than just printing a new list.
+
+Load a larger pretrained static embedding (the glove-wiki-gigaword-100 example above is enough) and compare the nearest neighbors of two of the same target words with the neighbors from your Marvel-trained model. What changes when the vectors were learned from a much larger and more general corpus?
+
+Recreate one axis of the Marvel map with your own Marvel-trained vectors instead of GloVe: average the vectors of each pole's words, subtract, and project every character's fingerprint onto the result. Which characters move, and what does that tell you about where an axis gets its meaning?
+
+6.10 — Ship an explorable Builder · stretch, optional
+
+Pick one idea from the week that became clearer when you could see it and build the version you wish had been on this page. Agents encouraged; the explanation still has to be yours.
+
+Some possibilities: let a user change one TF-IDF document frequency and watch the weight move; build a cosine-angle playground; turn a pair of corpora into your own Scattertext-style comparison; let a user change the number of topics in a tiny topic model; show a context window becoming a word-context row; or make Skip-gram training pairs appear as the window moves. The best ones get embedded on the page with credit.
+
+6.11 — Go nuts with your LLM Builder · every week
+
+The standing rules live in week 1, exercise 1.8: one free-form post on your group's site, link in this week's Teams channel by Monday evening, friendly criticism for at least one other group. Winner announced at the start of the next session.
+
+This week you have learned about several different ways of deciding when language is "close": TF-IDF and cosine similarity for documents, term contrasts between groups, topic mixtures, PPMI context vectors and Word2Vec. Use one of them to ask a question about the Marvel corpus that you actually want answered. One good question and one convincing figure beats five methods thrown together. Whatever you claim, inspect the text underneath it before you believe it.
+
+Some openers, if you want them:
+
+Who is textually close but structurally far away? Find pairs of characters with very similar Wikipedia text but large network distance. Read the pages and work out why.
+
+Can you recognize a network community from its language? Compare two communities with Scattertext or topic mixtures, then test the story on pages you did not use to invent it.
+
+Which characters live between topics? Find pages with unusually mixed LDA topic proportions and ask whether the characters really bridge themes or whether the model is confused.
+
+Which Marvel words keep surprising company? Use PPMI or Word2Vec neighbors, then return to concordance lines and explain the strangest pair that turns out to make sense.
+
+How much does the representation change the answer? Ask one question twice with two methods from the week and investigate the cases where they disagree.
+
+Names or meaning? TF-IDF put Storm next to the Human Torch because of a surname. Find a way to tell name-driven matches from story-driven ones across the whole corpus, and show what the lookalikes look like once the names are handled.
+
+Draw your own map of the Marvel universe. Build two axes of your own on the Marvel map, or with your own vectors, that give a picture you can defend. Check the characters at both ends of each axis against their pages, and show at least one axis that looked promising and turned out to be noise.
+
+Or ignore every suggestion and chase something the explorables made you wonder about. The winner is rarely the group that played it safe.
+
+Write the post around the question rather than the method: what you asked, what representation you chose, one strong figure or table, what surprised you, what you checked in the underlying text, and one limitation.
+
+7 · Next week: from meaning to measurement
+
+This week started with documents and ended with words. In both cases we turned patterns in text into vectors and used geometry to compare them, and in both cases the vectors were blind to one thing: context inside the sentence. Every bank got the same vector, river or money.
+
+Next week the vectors become contextual, and whole texts get a single embedding that captures more than their word counts. Then we put the representations to work as measurement tools: walking through a corpus by meaning, measuring sentiment, turning names in prose into structured data, and searching by meaning rather than by keyword. And because a measurement is only as good as its validation, we will spend real time on how bias can enter before the model ever runs.
+
+Essentials
+
+This is the Learn core of the week in one place. The recurring question is simple: what does one vector represent, what do its dimensions mean, and what information was used to place two vectors close together? If you can answer that and do the small calculations below with a pen, you are ready for this week's share of Test 2.
+
+TF-IDF
+
+a document-term weighting that combines how frequent a term is inside one document with how rare it is across the collection. Terms that occur everywhere are downweighted.
+
+Term frequency, TF
+
+the frequency of term t inside document d; here.
+
+Document frequency, DF
+
+the number of documents in the corpus that contain a term at least once.
+
+Inverse document frequency, IDF
+
+a weight that increases as a term appears in fewer documents; here.
+
+Cosine similarity
+
+the normalized dot product. It compares vector direction rather than overall length.
+
+Scattertext
+
+a tool for comparing two labeled corpora term by term, placing words or phrases according to how they are used in the two groups so shared and distinctive language can be inspected together.
+
+Topic model
+
+a family of methods for finding recurring patterns of word use across a collection of documents. Different topic models define the latent structure differently.
+
+LDA
+
+Latent Dirichlet Allocation, a probabilistic topic model in which each topic is a distribution over words and each document is a mixture over topics.
+
+Distributional hypothesis
+
+words that occur in similar contexts tend to have similar meanings or uses.
+
+Word-context matrix
+
+rows are target words, columns are context words, and cells record how often the context word occurs near the target under a chosen window definition.
+
+PMI
+
+pointwise mutual information,, comparing observed word-context co-occurrence with what independence would predict.
+
+PPMI
+
+positive PMI,; negative associations are set to zero.
+
+Static word embedding
+
+one vector per word type, regardless of the sentence in which it occurs. PPMI rows, Word2Vec and GloVe are different ways of constructing such vectors.
+
+Skip-gram
+
+a Word2Vec training setup where a center word is used to predict nearby context words.
+
+CBOW
+
+continuous bag of words, the reverse Word2Vec setup: nearby context words are used to predict the center word.
+
+Negative sampling
+
+a cheaper training objective that contrasts observed word-context pairs with a small sample of unobserved pairs rather than scoring the entire vocabulary every time.
+
+GloVe
+
+a dense static embedding method learned from global word co-occurrence statistics.
+
+On Test 2
+
+From this week, you should be able to do the following on paper, closed book. Any formula you need is printed on the test paper — you are never asked to write one from memory:
+
+compute term frequency (TF), document frequency (DF), inverse document frequency (IDF) and TF-IDF for a tiny corpus, and explain why a term that appears in every document receives little or no distinguishing weight;
+
+compute cosine similarity for small vectors, read the angle intuition, and explain why multiplying a vector by a positive constant changes its length but not its cosine with another vector;
+
+distinguish a document-term representation from a word-context representation by stating what one row, one column and one cell mean in each;
+
+read a two-corpus term plot such as Scattertext and distinguish language that is common in both groups from language that is comparatively distinctive of one group;
+
+explain what topic modeling is trying to recover, distinguish the general idea from LDA specifically, and state that in LDA a topic is a distribution over words while a document is a mixture over topics;
+
+explain why topic labels are human interpretations, and why the number of topics, preprocessing and initialization can change a fitted solution;
+
+explain the distributional hypothesis — that words occurring in similar contexts tend to have related meanings — and predict how a narrow versus a wide context window changes the information in a word-context vector;
+
+compute the ingredients of a simple PMI value (pointwise mutual information: observed co-occurrence against what independence would predict), turn it into PPMI by keeping only its positive part, and explain why that reduces the influence of common context words;
+
+construct training examples from a short sentence in both directions — center word predicting its neighbors (Skip-gram) and neighbors predicting the center word (CBOW) — and explain what negative sampling is doing;
+
+explain what PPMI vectors, Word2Vec and GloVe have in common, and name the main limitation of a single fixed vector per word for a word such as bank that has several meanings;
+
+spot the flaw in a short (possibly AI-written) claim about topics or embeddings: a topic label presented as the model's own output, one fitted solution presented as the answer, or a high cosine presented as evidence of similar meaning.
+
+Goodies
+
+Everything above is the course. Everything below is for the student who finished the page and wants more. Nothing here is on the test; all of it is worth your time.
+
+Why scikit-learn's TF-IDF disagrees with this page
+
+Spoiler for exercise 6.2, so finish it first. TfidfVectorizer makes three choices that differ from our definitions. Its term frequency is the raw count, not the count divided by document length. Its IDF is smoothed,, as if one extra document contained every term once, which guards against dividing by zero for a term that was never seen. And it rescales every document vector to length 1. Two of those three do not matter for cosine at all, because cosine ignores length anyway. The one that does matter is the final +1: it exists so that a term found in every document is "not entirely ignored," in scikit-learn's own words, and it is why the keeps a weight of 1. Turning the smoothing off with smooth_idf=False moves D1–D3 from 0.139 to 0.102, but no setting removes the +1, so to reproduce this page exactly you subtract it yourself from idf_. There are dozens of TF-IDF variants in use; none is the TF-IDF, which is why a paper should always say which one it used.
+
+Counting and predicting are secretly the same
+
+Section 6 says that Skip-gram with negative sampling is connected to a shifted PMI matrix. Omer Levy and Yoav Goldberg's Neural Word Embedding as Implicit Matrix Factorization (2014) makes that precise: at its optimum, the dot product of a word vector and a context vector equals the PMI of the pair minus, where k is the number of negative samples. So Word2Vec is, in effect, compressing a shifted version of the PMI matrix from Section 5 into a few hundred dense dimensions. It is a short and readable paper, and a lovely example of an idea that looked new turning out to be an old idea in disguise.
+
+A visual route into embeddings
+
+Lena Voita's Word Embeddings notes are one of the nicest visual explanations of distributional meaning, count-based vectors, Word2Vec, GloVe and the choices hidden in context windows. If one of today's explanations felt abstract, start here.
+
+Scattertext beyond the teaching view
+
+The Scattertext repository and examples show how much further you can take the two-corpus comparison: alternative term scores, phrases, interactive inspection and different ways of comparing categories. It is also a useful source of code when you build your own version.
+
+Dialectograms: when two communities use the same word differently
+
+Scattertext finds the words one community uses more than another. A harder question is how two communities use the same word: freedom, say, or police. In Analyzing differences between discursive communities using dialectograms (Enggaard, Lohse, Pedersen and Lehmann, Scientific Reports, 2024; preprint) we answer it with tools from this very page. We train a separate GloVe embedding on each community's text, pick one focal word, and plot the vocabulary on two axes, one per community, according to how strongly each community's embedding ties a word to the focal word. Like Scattertext, the plot puts shared and characteristic language side by side, but now for one word's meaning rather than for word counts. We also introduce a measure, sense separation, built on the PMI from Section 5, that ranks which words the two communities use most differently without simply surfacing rare words or words with many meanings. We applied it to comments from two US political subreddits, one Democratic and one Republican; the code is on GitHub if you want to try it on two Marvel communities.
+
+Read the original GloVe paper
+
+Pennington, Socher and Manning's GloVe: Global Vectors for Word Representation is the 2014 paper behind the method. It is a nice follow-up if you want to see how global co-occurrence statistics can be turned into dense word vectors.
+
+Use embeddings to explore a corpus
+
+Márton Kardos' Explore Semantic Relations in Corpora with Embedding Models is a practical example of using embedding geometry as an exploratory tool rather than only as input to a prediction model. This is very close to the spirit of what I want you to do with the Marvel corpus.
+
+Topic models still need a human
+
+Kardos' Unsupervised Text Classification with Topic Models and Good Old Human Reasoning is a useful example of combining a topic model with actual inspection and human judgment. The title is also a decent summary of today's warning about naming topics too quickly.
+
+Play inside an embedding space
+
+The TensorFlow Embedding Projector lets you explore high-dimensional embeddings interactively. Search for points, inspect neighbors and switch projection methods. It is a good place to build an intuition for what it means to navigate a vector space before we work with document embeddings next week.
+
+A critical reading before the modern models
+
+Bender, Gebru, McMillan-Major and Shmitchell's On the Dangers of Stochastic Parrots: Can Language Models Be Too Big? is a useful counterweight to the technical story. It asks what is encoded in large language models, where their training data come from, and what can go wrong when scale is treated as the main route forward. We will return to questions like these when models become measurement tools.
