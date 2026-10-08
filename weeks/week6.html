@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 6: Rare beats frequent</title>
+<meta name="description" content="A word that only one week uses against a word that several weeks share. Guess how often the shared word must appear to tie on TF-IDF.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="assets/week6.css">
+<noscript><style>
+  .loading { display: none; }
+  .widget::after {
+    content: "This game is interactive and needs JavaScript.";
+    display: block;
+    font-size: 0.83rem;
+    color: var(--muted);
+  }
+</style></noscript>
+</head>
+<body>
+
+<nav class="post-nav">
+  <a href="../index.html">&larr; All weeks</a>
+  <span class="tag">02805 · Jasper &amp; Bram</span>
+</nav>
+
+<header class="post-header">
+  <div class="pills">
+    <span class="pill pill--green">Week 6 · From counts to meaning</span>
+    <span class="pill pill--white">Corpus: the six course week pages</span>
+  </div>
+  <h1>[title]</h1>
+
+  <div class="stat-row" id="g-stats">
+    <div class="stat"><b>6</b><span>documents, one per week</span></div>
+    <div class="stat"><b id="s-tokens">&ndash;</b><span>tokens in total</span></div>
+    <div class="stat"><b id="s-vocab">&ndash;</b><span>different words</span></div>
+    <div class="stat"><b id="s-every">&ndash;</b><span>words in all six weeks, so their TF-IDF is 0</span></div>
+  </div>
+</header>
+
+<section class="wide">
+  <div class="widget" id="g-widget">
+    <div class="widget-head">
+      <h3>Play</h3>
+      <div class="widget-actions">
+        <button id="g-help" class="ghost" type="button">How to play</button>
+      </div>
+    </div>
+    <p class="hint">
+      Set your guess, then press <strong>Lock in</strong> (or Enter).
+      Eight rounds per game, up to 100 points per guess.
+    </p>
+
+    <div class="mode" role="group" aria-label="Which TF-IDF">
+      <button type="button" id="f-course" aria-pressed="true">Course</button>
+      <button type="button" id="f-both" aria-pressed="false">Course + J&amp;M</button>
+    </div>
+
+    <div class="formulas">
+      <div class="formula" role="math" aria-label="Course: tf-idf equals count over d, times the natural log of N over df">
+        <span class="flabel jm-only">Course</span>
+        <span class="lhs">tf-idf</span>
+        <span class="op">=</span>
+        <span class="part">
+          <span class="frac"><span>count</span><span>|d|</span></span>
+          <span class="tag">tf</span>
+        </span>
+        <span class="op">&times;</span>
+        <span class="part">
+          <span class="expr"><span class="fn">ln</span><span class="frac"><span>N</span><span>df</span></span></span>
+          <span class="tag">idf</span>
+        </span>
+      </div>
+      <div class="formula jm-only" role="math" aria-label="J and M: tf-idf equals 1 plus log base 10 of count, times log base 10 of N over df">
+        <span class="flabel">J&amp;M</span>
+        <span class="lhs">tf-idf</span>
+        <span class="op">=</span>
+        <span class="part">
+          <span class="expr">(1&nbsp;+&nbsp;<span class="fn">log<sub>10</sub></span><i>count</i>)</span>
+          <span class="tag">tf</span>
+        </span>
+        <span class="op">&times;</span>
+        <span class="part">
+          <span class="expr"><span class="fn">log<sub>10</sub></span><span class="frac"><span>N</span><span>df</span></span></span>
+          <span class="tag">idf</span>
+        </span>
+      </div>
+    </div>
+
+    <p class="loading" id="g-loading">Counting words&hellip;</p>
+
+    <div id="g-app" hidden>
+      <div class="round-bar">
+        <div class="round-doc">Document: <b id="g-week"></b> &middot; |d| = <span id="g-len"></span> tokens</div>
+        <div class="round-meta">
+          <div>Round <b id="g-round"></b></div>
+          <div>Score <b id="g-score"></b></div>
+        </div>
+      </div>
+
+      <div class="scale">
+        <div class="word-card unique">
+          <span class="role">Only in this week</span>
+          <div class="word" id="a-word"></div>
+          <div class="weekdots" id="a-dots"></div>
+          <table class="calc" id="a-calc"></table>
+        </div>
+
+        <div class="scale-eq" aria-hidden="true">=</div>
+
+        <div class="word-card shared">
+          <span class="role">Shared with other weeks</span>
+          <div class="word" id="b-word"></div>
+          <div class="weekdots" id="b-dots"></div>
+          <table class="calc" id="b-calc"></table>
+        </div>
+      </div>
+
+      <div class="guess">
+        <p class="guess-q" id="g-question"></p>
+        <div id="g-guesses"></div>
+      </div>
+
+      <div class="result" id="g-result" hidden></div>
+
+      <div class="controls">
+        <button class="primary" id="g-lock" type="button">Lock in</button>
+        <button id="g-next" type="button" hidden>Next round</button>
+        <label>
+          Weeks
+          <select id="g-filter">
+            <option value="all">All six</option>
+            <option value="1">Week 1</option>
+            <option value="2">Week 2</option>
+            <option value="3">Week 3</option>
+            <option value="4">Week 4</option>
+            <option value="5">Week 5</option>
+            <option value="6">Week 6</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="g-showidf"> Show the shared word's idf</label>
+        <button id="g-restart" type="button">New game</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="post">
+  <h2>Course vs. the book (J&amp;M)</h2>
+  <p>
+    Each week's 15 highest-scoring words under the course formula, next to
+    the same week under Jurafsky &amp; Martin's. Green words appear only in
+    that week.
+  </p>
+</main>
+
+<section class="wide">
+  <figure class="widget rank-fig" id="r-widget">
+    <div class="widget-head">
+      <h3>Top 15 words by TF-IDF</h3>
+    </div>
+
+    <div class="mode rank-weeks" role="group" aria-label="Week" id="r-weeks">
+      <button type="button" data-week="1" aria-pressed="false">Week 1</button>
+      <button type="button" data-week="2" aria-pressed="false">Week 2</button>
+      <button type="button" data-week="3" aria-pressed="false">Week 3</button>
+      <button type="button" data-week="4" aria-pressed="false">Week 4</button>
+      <button type="button" data-week="5" aria-pressed="false">Week 5</button>
+      <button type="button" data-week="6" aria-pressed="true">Week 6</button>
+    </div>
+
+    <div class="rank-legend">
+      <span><i class="sw unique"></i>Only in this week (df = 1)</span>
+      <span><i class="sw shared"></i>Also in other weeks (df &ge; 2)</span>
+    </div>
+
+    <p class="loading" id="r-loading">Counting words&hellip;</p>
+
+    <div class="rank-panels" id="r-panels" hidden>
+      <div class="rank-panel" data-f="course">
+        <h4>Course <span>count/|d| &times; ln(N/df)</span></h4>
+        <p class="rank-sum"></p>
+        <ol class="rank-list"></ol>
+        <p class="rank-tied"></p>
+      </div>
+      <div class="rank-panel" data-f="jm">
+        <h4>J&amp;M <span>(1 + log<sub>10</sub> count) &times; log<sub>10</sub>(N/df)</span></h4>
+        <p class="rank-sum"></p>
+        <ol class="rank-list"></ol>
+        <p class="rank-tied"></p>
+      </div>
+    </div>
+
+  </figure>
+</section>
+
+<main class="post">
+  <div class="tie-table" id="t-table">
+    <div class="tie-head">
+      <p>How often a shared word must appear to tie a word used in only one
+        week, when that word appears 1, 3 or 10 times.</p>
+      <div class="mode" role="group" aria-label="Which TF-IDF">
+        <button type="button" data-f="course" aria-pressed="false">Course</button>
+        <button type="button" data-f="jm" aria-pressed="true">J&amp;M</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data jm-table">
+        <thead>
+          <tr><th>Word is in</th><th>1&times;</th><th>3&times;</th><th>10&times;</th></tr>
+        </thead>
+        <tbody data-f="course" hidden>
+          <tr><td class="t">1 week</td><td>1</td><td>3</td><td>10</td></tr>
+          <tr><td class="t">2 weeks</td><td>2</td><td>5</td><td>17</td></tr>
+          <tr><td class="t">3 weeks</td><td>3</td><td>8</td><td>26</td></tr>
+          <tr><td class="t">4 weeks</td><td>5</td><td>14</td><td>45</td></tr>
+          <tr><td class="t">5 weeks</td><td>10</td><td>30</td><td>99</td></tr>
+          <tr><td class="t">6 weeks</td><td>never</td><td>never</td><td>never</td></tr>
+        </tbody>
+        <tbody data-f="jm">
+          <tr><td class="t">1 week</td><td>1</td><td>3</td><td>10</td></tr>
+          <tr><td class="t">2 weeks</td><td>5</td><td>26</td><td>183</td></tr>
+          <tr><td class="t">3 weeks</td><td>39</td><td>659</td><td>14,789</td></tr>
+          <tr><td class="t">4 weeks</td><td>2,625</td><td>336,847</td><td>6.9 &times; 10<sup>7</sup></td></tr>
+          <tr><td class="t">5 weeks</td><td>6.7 &times; 10<sup>8</sup></td><td>3.3 &times; 10<sup>13</sup></td><td>4.5 &times; 10<sup>18</sup></td></tr>
+          <tr><td class="t">6 weeks</td><td>never</td><td>never</td><td>never</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p>
+    Under J&amp;M a shared word has almost no chance. The book takes the log of
+    the count, so piling up occurrences barely helps, while every extra week
+    that uses the word cuts its idf hard. A word in three weeks has to appear
+    659 times to tie a df&nbsp;=&nbsp;1 word seen three times. Under the course
+    formula it needs about 2.6 times as many, or 8. That is why the J&amp;M list
+    is green from top to bottom in every week.
+  </p>
+  <p>
+    This is probably mostly down to our small corpus. With only six documents,
+    idf can take just six values, and log<sub>10</sub>(6/df) drops to almost
+    nothing after a few weeks. With hundreds of documents, sharing a word with
+    a handful of others would hardly matter. Even so, both lists do a good job
+    of pulling out what each week is about: <em>pagerank</em>,
+    <em>closeness</em> and <em>eigenvector</em> for week 3,
+    <em>philosophers</em>, <em>partition</em> and <em>dendrogram</em> for
+    week 4, <em>tokenization</em> and <em>subword</em> for week 5,
+    <em>topics</em>, <em>embedding</em> and <em>lda</em> for week 6.
+  </p>
+
+  <h2>How alike are the weeks?</h2>
+
+  <figure class="widget sim-fig" id="s-widget">
+    <div class="widget-head">
+      <h3>Cosine similarity between the weeks</h3>
+    </div>
+
+    <div class="mode" role="group" aria-label="Which TF-IDF" id="s-mode">
+      <button type="button" data-f="course" aria-pressed="true">Course</button>
+      <button type="button" data-f="jm" aria-pressed="false">J&amp;M</button>
+    </div>
+
+    <p class="loading" id="s-loading">Counting words&hellip;</p>
+
+    <div class="sim-wrap" id="s-wrap" hidden>
+      <table class="sim-matrix" id="s-matrix"></table>
+      <div class="sim-scale" aria-hidden="true">
+        <span class="sim-ramp"></span>
+        <span class="sim-ticks" id="s-ticks"></span>
+      </div>
+    </div>
+  </figure>
+
+  <p>
+    The matrix splits the course in two. The first four weeks, all about
+    networks, are more alike among themselves (0.07 to 0.16) than with
+    weeks 5 and 6 (0.02 to 0.05). Weeks 5 and 6 are by far the most alike
+    pair at 0.33, which is what we would expect, since week 6 builds further
+    on the NLP from week 5 and keeps using its words: <em>corpus</em>,
+    <em>word</em>, <em>language</em>. J&amp;M shows the same pattern, only
+    weaker, because it gives less TF-IDF weight to words that occur in
+    several weeks. Those shared words are exactly what pushes the
+    similarities higher under the course formula.
+  </p>
+
+  <p style="margin:3rem 0 4rem">
+    <a href="../index.html">&larr; Back to all weeks</a>
+  </p>
+</main>
+
+<div class="modal-overlay" id="helpOverlay">
+  <div class="modal">
+    <h2>Make the scale balance</h2>
+    <p>
+      Both words sit in the same week, so they share the same |d|. The only
+      things that differ are the <strong>count</strong> and the
+      <strong>idf</strong>.
+    </p>
+    <ul>
+      <li>The <strong>green</strong> word appears in this week only, so
+        df = 1 and its idf is ln(6/1) &asymp; 1.79, the highest any word
+        can get. You see its full TF-IDF.</li>
+      <li>The <strong>orange</strong> word also appears in other weeks (the
+        filled dots). The more weeks share it, the smaller its idf gets. A
+        word in all six weeks gets ln(6/6) = 0, and no count can save it.</li>
+      <li>Guess the count that would give the orange word the
+        <strong>same TF-IDF</strong> as the green one. Use the slider or
+        type the number.</li>
+      <li>Since |d| cancels out, the exact answer is
+        <div class="formula-line">count<sub>orange</sub> = count<sub>green</sub> &times; ln(6/1) &divide; ln(6/df)</div>
+        Counts are whole numbers, so the nearest whole number gets the full
+        100 points.</li>
+      <li>With <strong>Course + J&amp;M</strong> you type two numbers, one
+        per formula. J&amp;M takes the log of the count, so its answers can run
+        into powers of ten: type <code>1e12</code> or <code>10^12</code>
+        for 10<sup>12</sup>.</li>
+    </ul>
+    <p class="intro-note">
+      After each round you also see how often the orange word
+      <em>really</em> appears in that week, and whether that is enough to
+      beat the green one.
+    </p>
+    <button id="helpClose" type="button">Got it</button>
+  </div>
+</div>
+
+<div class="tip" id="r-tip" role="tooltip"></div>
+
+<footer>
+  02805 Social graphs and interactions &middot; DTU
+</footer>
+
+<script defer src="assets/week6.js"></script>
+<script defer src="assets/week6_rank.js"></script>
+<script defer src="assets/week6_sim.js"></script>
+</body>
+</html>
