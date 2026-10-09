@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Week 6: Rare beats frequent</title>
-<meta name="description" content="A word that only one week uses against a word that several weeks share. Guess how often the shared word must appear to tie on TF-IDF.">
+<meta name="description" content="We turned the course's own six week pages into plain text, then asked which words actually say something about a week: raw counts, TF-IDF, and a topic model.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
 <noscript><style>
   .loading { display: none; }
   .widget::after {
-    content: "This game is interactive and needs JavaScript.";
+    content: "The figures and the game on this page are interactive and need JavaScript.";
     display: block;
     font-size: 0.83rem;
     color: var(--muted);
@@ -32,7 +32,13 @@
     <span class="pill pill--green">Week 6 · From counts to meaning</span>
     <span class="pill pill--white">Corpus: the six course week pages</span>
   </div>
-  <h1>[title]</h1>
+  <h1>Rare beats frequent.</h1>
+  <p class="lede">
+    Six documents, one per week: the course's own pages, turned into plain
+    text by us. We count the words, then ask which of them actually say
+    something about a week: first with TF-IDF, then with a topic model.
+    Both answers depend on choices we made before any formula ran.
+  </p>
 
   <div class="stat-row" id="g-stats">
     <div class="stat"><b>6</b><span>documents, one per week</span></div>
@@ -42,6 +48,341 @@
   </div>
 </header>
 
+<main>
+<section class="post">
+  <h2>Where the text comes from</h2>
+  <p>
+    Everything on this page is built from the course's own six week pages.
+    We did not get a clean text file handed to us. We had to make one, and
+    the choices we made along the way change every number below.
+  </p>
+
+  <details class="pipeline">
+    <summary>
+      <strong>Our data collection pipeline</strong>
+      <span>nine steps, and what each one cost</span>
+    </summary>
+
+    <div class="pipeline-body">
+      <ol class="pipeline-steps">
+        <li>
+          <h4>Take only the main text</h4>
+          <p>Each page has a menu, a table of contents and a footer. We keep
+            only what is inside the page's <code>&lt;main&gt;</code> block, so
+            all of that disappears in one move instead of needing a rule per
+            item.</p>
+        </li>
+        <li>
+          <h4>Pick the parts we want, not the parts we don't</h4>
+          <p>We ask for paragraphs, list items, headings, glossary entries,
+            quotes and figure captions. Anything else is skipped. Naming what
+            we want is safer than naming what we reject, because a page can
+            always add something new we did not think to exclude.</p>
+        </li>
+        <li>
+          <h4>Make the letters plain</h4>
+          <p>Curly quotes become straight ones, and accented letters become
+            their closest plain letter, so <em>Barab&aacute;si</em> becomes
+            <em>Barabasi</em>. This has to happen <strong>before</strong> the
+            next filters, or <em>don't</em> would end up as <em>don t</em> and
+            72 author names would be damaged.</p>
+        </li>
+        <li>
+          <h4>Split into sentences, carefully</h4>
+          <p>We cut at a full stop followed by a space, except after
+            short forms like <em>Fig.</em>, <em>Ch.</em>, <em>et al.</em> and
+            <em>e.g.</em>, which would otherwise be cut in the middle. A plain
+            splitter gets this wrong 92 times.</p>
+        </li>
+        <li class="costly">
+          <h4>Throw away every sentence with maths in it</h4>
+          <p>The pages write maths between dollar signs. We tried removing
+            just the maths and keeping the sentence, and it left wreckage:
+            <em>"Zachary's real split scores."</em> So we drop the whole
+            sentence instead. <strong>This costs us 582 sentences, 13.5% of
+            the corpus</strong>. That is the most expensive choice on this
+            list.</p>
+        </li>
+        <li>
+          <h4>Keep a small alphabet</h4>
+          <p>Letters, digits, spaces, and <code>. , ! ? ' -</code> Everything
+            else goes. That removes the leftover brackets, arrows and symbols
+            that maths and code leave behind.</p>
+        </li>
+        <li>
+          <h4>Tidy up, in a fixed order</h4>
+          <p>Removing text leaves gaps like <code>degree ,</code> and doubles
+            like <code>,,</code>. We close the gaps first, then collapse the
+            doubles. Doing it the other way round leaves new doubles behind.
+            We got this wrong twice before checking properly.</p>
+        </li>
+        <li>
+          <h4>Drop anything left hollow</h4>
+          <p>If a line is less than half letters after all that, it was never
+            really a sentence. It goes.</p>
+        </li>
+        <li>
+          <h4>Write one piece of text per line</h4>
+          <p>1,588 lines, each a paragraph, list item or heading that stands
+            on its own.</p>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+  <p>
+    <strong>What this means for the numbers on this page.</strong> The 13.5%
+    we dropped is not spread evenly. Week 2 lost 22% of its sentences and
+    week 4 lost 20%, but week 5 lost only 2%. The weeks that used the most
+    maths lost the most text. So when you compare weeks below, remember you
+    are comparing what survived, and the most mathematical weeks survived
+    least. These files hold the pages' <strong>language</strong>, not their
+    numbers.
+  </p>
+</section>
+<section class="post">
+  <h2>Look at the raw counts first</h2>
+  <p>
+    Before any formula, look at what is actually in the text. Here are the ten
+    most common words in each week, just counted, nothing weighted.
+  </p>
+</section>
+<section class="wide">
+  <figure class="widget raw-fig" id="w-widget">
+    <div class="widget-head">
+      <h3>The ten most common words</h3>
+    </div>
+
+    <div class="mode" role="group" aria-label="Which words to count" id="w-mode">
+      <button type="button" data-mode="all" aria-pressed="true">Every word</button>
+      <button type="button" data-mode="nostop" aria-pressed="false">Without filler words</button>
+    </div>
+
+    <div class="mode raw-weeks" role="group" aria-label="Week" id="w-weeks">
+      <button type="button" data-week="1" aria-pressed="true">Week 1</button>
+      <button type="button" data-week="2" aria-pressed="false">Week 2</button>
+      <button type="button" data-week="3" aria-pressed="false">Week 3</button>
+      <button type="button" data-week="4" aria-pressed="false">Week 4</button>
+      <button type="button" data-week="5" aria-pressed="false">Week 5</button>
+      <button type="button" data-week="6" aria-pressed="false">Week 6</button>
+    </div>
+
+    <div class="raw-legend">
+      <span><i class="sw everyweek"></i>In every week's top ten</span>
+      <span><i class="sw someweeks"></i>Not in every week's top ten</span>
+    </div>
+
+    <p class="loading" id="w-loading">Counting words&hellip;</p>
+
+    <div id="w-panel" hidden>
+      <ol class="raw-bars" id="w-bars"></ol>
+      <p class="raw-note" id="w-note"></p>
+    </div>
+  </figure>
+</section>
+<section class="post">
+  <p>
+    Click through the weeks. The top of every list is nearly the same, and
+    nearly useless. <strong>Eight of the ten</strong> (<em>the</em>,
+    <em>a</em>, <em>and</em>, <em>of</em>, <em>is</em>, <em>to</em>,
+    <em>in</em>, <em>that</em>) are in all six weeks' top ten. Only
+    two content words make any top ten at all: <em>network</em> in weeks 2, 3
+    and 4, and <em>word</em> in week 6. Counting alone almost cannot tell the
+    network half of the course from the language half.
+  </p>
+  <p>
+    And it gets worse further down. <strong id="s-every-2">&ndash;</strong>
+    words appear in all six weeks. Plain counting puts exactly those words on
+    top, and they cannot separate anything.
+  </p>
+  <p>
+    Now press <strong>Without filler words</strong>. The lists come apart at
+    once: <em>edges</em> and <em>nodes</em> for week 1, <em>random</em>,
+    <em>null</em> and <em>distribution</em> for week 2, <em>centrality</em>
+    and <em>betweenness</em> for week 3, <em>modularity</em> and
+    <em>communities</em> for week 4, <em>corpus</em> and <em>token</em> for
+    week 5, <em>topic</em> and <em>tf-idf</em> for week 6. Now
+    <strong>none</strong> of the ten is shared by all six weeks, where eight
+    were before.
+  </p>
+  <p>
+    That is tempting, but notice what it took: a list of words we decided in
+    advance did not matter. Those words are <strong>51%</strong> of the
+    corpus, and the list is a choice, not a measurement. TF-IDF gets to a
+    similar place without one. A word is only interesting here if it is
+    common in <em>one</em> week and rare in the others, and that can be
+    worked out from the counts themselves. Counting finds common. It does
+    not find rare. The rest of this page is about adding the second half.
+  </p>
+
+  <div class="table-wrap">
+    <table class="data raw-table">
+      <thead>
+        <tr><th>Week</th><th>Title</th><th>Tokens</th><th>Different words</th></tr>
+      </thead>
+      <tbody id="w-table"></tbody>
+    </table>
+  </div>
+
+  <p>
+    Week 5 is the longest and week 1 the shortest, a 1.5&times; spread. Length
+    alone shifts raw counts, which is why the <em>tf</em> half of TF-IDF
+    divides by it.
+  </p>
+</section>
+<section class="post">
+  <h2>Course vs. the book</h2>
+  <p>
+    Two formulas, same corpus. The course's own version from week 6, next
+    to the one in the course textbook: Jurafsky &amp; Martin,
+    <em>Speech and Language Processing</em>, chapter 11. We call it
+    <strong>the book</strong> from here on. Each panel is one week's 15
+    highest-scoring words. Green words appear only in that week.
+  </p>
+</section>
+<section class="wide">
+  <figure class="widget rank-fig" id="r-widget">
+    <div class="widget-head">
+      <h3>Top 15 words by TF-IDF</h3>
+    </div>
+
+    <div class="mode rank-weeks" role="group" aria-label="Week" id="r-weeks">
+      <button type="button" data-week="1" aria-pressed="false">Week 1</button>
+      <button type="button" data-week="2" aria-pressed="false">Week 2</button>
+      <button type="button" data-week="3" aria-pressed="false">Week 3</button>
+      <button type="button" data-week="4" aria-pressed="false">Week 4</button>
+      <button type="button" data-week="5" aria-pressed="false">Week 5</button>
+      <button type="button" data-week="6" aria-pressed="true">Week 6</button>
+    </div>
+
+    <div class="rank-legend">
+      <span><i class="sw unique"></i>Only in this week (df = 1)</span>
+      <span><i class="sw shared"></i>Also in other weeks (df &ge; 2)</span>
+    </div>
+
+    <p class="loading" id="r-loading">Counting words&hellip;</p>
+
+    <div class="rank-panels" id="r-panels" hidden>
+      <div class="rank-panel" data-f="course">
+        <h4>Course <span>count/|d| &times; ln(N/df)</span></h4>
+        <p class="rank-sum"></p>
+        <ol class="rank-list"></ol>
+        <p class="rank-tied"></p>
+      </div>
+      <div class="rank-panel" data-f="jm">
+        <h4>The book <span>(1 + log<sub>10</sub> count) &times; log<sub>10</sub>(N/df)</span></h4>
+        <p class="rank-sum"></p>
+        <ol class="rank-list"></ol>
+        <p class="rank-tied"></p>
+      </div>
+    </div>
+
+  </figure>
+</section>
+<section class="post">
+  <div class="tie-table" id="t-table">
+    <div class="tie-head">
+      <p>How often a shared word must appear to tie a word used in only one
+        week, when that word appears 1, 3 or 10 times.</p>
+      <div class="mode" role="group" aria-label="Which TF-IDF">
+        <button type="button" data-f="course" aria-pressed="false">Course</button>
+        <button type="button" data-f="jm" aria-pressed="true">The book</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data jm-table">
+        <thead>
+          <tr><th>Word is in</th><th>1&times;</th><th>3&times;</th><th>10&times;</th></tr>
+        </thead>
+        <tbody data-f="course" hidden>
+          <tr><td class="t">1 week</td><td>1</td><td>3</td><td>10</td></tr>
+          <tr><td class="t">2 weeks</td><td>2</td><td>5</td><td>17</td></tr>
+          <tr><td class="t">3 weeks</td><td>3</td><td>8</td><td>26</td></tr>
+          <tr><td class="t">4 weeks</td><td>5</td><td>14</td><td>45</td></tr>
+          <tr><td class="t">5 weeks</td><td>10</td><td>30</td><td>99</td></tr>
+          <tr><td class="t">6 weeks</td><td>never</td><td>never</td><td>never</td></tr>
+        </tbody>
+        <tbody data-f="jm">
+          <tr><td class="t">1 week</td><td>1</td><td>3</td><td>10</td></tr>
+          <tr><td class="t">2 weeks</td><td>5</td><td>26</td><td>183</td></tr>
+          <tr><td class="t">3 weeks</td><td>39</td><td>659</td><td>14,789</td></tr>
+          <tr><td class="t">4 weeks</td><td>2,625</td><td>336,847</td><td>6.9 &times; 10<sup>7</sup></td></tr>
+          <tr><td class="t">5 weeks</td><td>6.7 &times; 10<sup>8</sup></td><td>3.3 &times; 10<sup>13</sup></td><td>4.5 &times; 10<sup>18</sup></td></tr>
+          <tr><td class="t">6 weeks</td><td>never</td><td>never</td><td>never</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p>
+    Under the book's formula a shared word has almost no chance. It takes the
+    log of the count, so piling up occurrences barely helps, while every extra
+    week that uses the word cuts its idf hard. Take a green word seen three
+    times, and a word that appears in three weeks trying to tie it. Under the
+    book's formula the shared word needs <strong>659</strong> occurrences.
+    Under the course formula it needs <strong>8</strong>, about 2.6
+    times the green word's three. That is why the book's list is green from
+    top to bottom in every week.
+  </p>
+  <p>
+    This is probably mostly down to our small corpus. With only six documents,
+    idf can take just six values, and log<sub>10</sub>(6/df) drops to almost
+    nothing after a few weeks. With hundreds of documents, sharing a word with
+    a handful of others would hardly matter. Even so, both lists do a good job
+    of pulling out what each week is about: <em>pagerank</em>,
+    <em>closeness</em> and <em>eigenvector</em> for week 3,
+    <em>philosophers</em>, <em>partition</em> and <em>dendrogram</em> for
+    week 4, <em>tokenization</em> and <em>subword</em> for week 5,
+    <em>topics</em>, <em>embedding</em> and <em>lda</em> for week 6.
+  </p>
+
+  <h2>How alike are the weeks?</h2>
+</section>
+
+<section class="wide">
+  <figure class="widget sim-fig" id="s-widget">
+    <div class="widget-head">
+      <h3>Cosine similarity between the weeks</h3>
+    </div>
+
+    <div class="mode" role="group" aria-label="Which TF-IDF" id="s-mode">
+      <button type="button" data-f="course" aria-pressed="true">Course</button>
+      <button type="button" data-f="jm" aria-pressed="false">The book</button>
+    </div>
+
+    <p class="loading" id="s-loading">Counting words&hellip;</p>
+
+    <div class="sim-wrap" id="s-wrap" hidden>
+      <table class="sim-matrix" id="s-matrix"></table>
+      <div class="sim-scale" aria-hidden="true">
+        <span class="sim-ramp"></span>
+        <span class="sim-ticks" id="s-ticks"></span>
+      </div>
+    </div>
+  </figure>
+</section>
+
+<section class="post">
+  <p>
+    The matrix splits the course in two. The first four weeks, all about
+    networks, are more alike among themselves (0.07 to 0.16) than with
+    weeks 5 and 6 (0.02 to 0.05). Weeks 5 and 6 are by far the most alike
+    pair at 0.33, which is what we would expect, since week 6 builds further
+    on the NLP from week 5 and keeps using its words: <em>corpus</em>,
+    <em>word</em>, <em>language</em>. The book shows the same pattern, only
+    weaker, because it gives less TF-IDF weight to words that occur in
+    several weeks. Those shared words are exactly what pushes the
+    similarities higher under the course formula.
+  </p>
+</section>
+<section class="post">
+  <h2>Now try it yourself</h2>
+  <p>
+    You have seen the formula and what it ranks. This is the same idea with
+    the numbers hidden: two words from one week, and you work out what the
+    shared word would have to do to catch up.
+  </p>
+</section>
 <section class="wide">
   <div class="widget" id="g-widget">
     <div class="widget-head">
@@ -51,13 +392,13 @@
       </div>
     </div>
     <p class="hint">
-      Set your guess, then press <strong>Lock in</strong> (or Enter).
+      Pick an option, then press <strong>Lock in</strong> (or Enter).
       Eight rounds per game, up to 100 points per guess.
     </p>
 
     <div class="mode" role="group" aria-label="Which TF-IDF">
       <button type="button" id="f-course" aria-pressed="true">Course</button>
-      <button type="button" id="f-both" aria-pressed="false">Course + J&amp;M</button>
+      <button type="button" id="f-both" aria-pressed="false">Course + book</button>
     </div>
 
     <div class="formulas">
@@ -75,8 +416,8 @@
           <span class="tag">idf</span>
         </span>
       </div>
-      <div class="formula jm-only" role="math" aria-label="J and M: tf-idf equals 1 plus log base 10 of count, times log base 10 of N over df">
-        <span class="flabel">J&amp;M</span>
+      <div class="formula jm-only" role="math" aria-label="The book: tf-idf equals 1 plus log base 10 of count, times log base 10 of N over df">
+        <span class="flabel">Book</span>
         <span class="lhs">tf-idf</span>
         <span class="op">=</span>
         <span class="part">
@@ -148,152 +489,160 @@
     </div>
   </div>
 </section>
-
-<main class="post">
-  <h2>Course vs. the book (J&amp;M)</h2>
+<section class="post">
+  <h2>What each week is about</h2>
   <p>
-    Each week's 15 highest-scoring words under the course formula, next to
-    the same week under Jurafsky &amp; Martin's. Green words appear only in
-    that week.
+    TF-IDF scores one word at a time. It never says a week <em>has</em> a
+    theme. For that we use a topic model, LDA, which looks for groups of words
+    that keep turning up together.
   </p>
-</main>
-
+  <p>
+    One change first. For TF-IDF we treated each week as a single document, so
+    N&nbsp;=&nbsp;6. Six documents is far too few to find topics in. The model
+    needs to see words appear together in some documents and not in others,
+    and with six there is almost nothing to compare. So we cut the weeks into
+    pieces of about 200 words each, which gives <strong>238 documents</strong>.
+    Each piece remembers which week it came from, but the model is never told.
+  </p>
+  <p>
+    Then we ask for 6, 7 and 8 topics and see where each week's text lands.
+  </p>
+</section>
 <section class="wide">
-  <figure class="widget rank-fig" id="r-widget">
+  <figure class="widget topic-fig" id="k-widget">
     <div class="widget-head">
-      <h3>Top 15 words by TF-IDF</h3>
+      <h3>Where each week's text lands</h3>
     </div>
 
-    <div class="mode rank-weeks" role="group" aria-label="Week" id="r-weeks">
-      <button type="button" data-week="1" aria-pressed="false">Week 1</button>
-      <button type="button" data-week="2" aria-pressed="false">Week 2</button>
-      <button type="button" data-week="3" aria-pressed="false">Week 3</button>
-      <button type="button" data-week="4" aria-pressed="false">Week 4</button>
-      <button type="button" data-week="5" aria-pressed="false">Week 5</button>
-      <button type="button" data-week="6" aria-pressed="true">Week 6</button>
+    <div class="mode" role="group" aria-label="Number of topics" id="k-mode">
+      <button type="button" data-k="6" aria-pressed="true">6 topics</button>
+      <button type="button" data-k="7" aria-pressed="false">7 topics</button>
+      <button type="button" data-k="8" aria-pressed="false">8 topics</button>
     </div>
 
-    <div class="rank-legend">
-      <span><i class="sw unique"></i>Only in this week (df = 1)</span>
-      <span><i class="sw shared"></i>Also in other weeks (df &ge; 2)</span>
-    </div>
+    <p class="hint" id="k-hint"></p>
+    <p class="loading" id="k-loading">Loading topics&hellip;</p>
 
-    <p class="loading" id="r-loading">Counting words&hellip;</p>
-
-    <div class="rank-panels" id="r-panels" hidden>
-      <div class="rank-panel" data-f="course">
-        <h4>Course <span>count/|d| &times; ln(N/df)</span></h4>
-        <p class="rank-sum"></p>
-        <ol class="rank-list"></ol>
-        <p class="rank-tied"></p>
+    <div id="k-wrap" hidden>
+      <div class="table-wrap">
+        <table class="topic-matrix" id="k-matrix"></table>
       </div>
-      <div class="rank-panel" data-f="jm">
-        <h4>J&amp;M <span>(1 + log<sub>10</sub> count) &times; log<sub>10</sub>(N/df)</span></h4>
-        <p class="rank-sum"></p>
-        <ol class="rank-list"></ol>
-        <p class="rank-tied"></p>
+      <div class="sim-scale" aria-hidden="true">
+        <span class="topic-ramp"></span>
+        <span class="sim-ticks"><span>0%</span><span>50%</span><span>100%</span></span>
       </div>
+      <ol class="topic-list" id="k-list"></ol>
     </div>
-
   </figure>
 </section>
+<section class="post">
+  <p>
+    <strong>Six topics does not give you the six weeks.</strong> At
+    K&nbsp;=&nbsp;6, weeks 5 and 6 both land on the same topic,
+    <em>word words context corpus text vectors</em>, taking 63% and 68%
+    of their text. Five topics end up covering six weeks. The two language
+    weeks share so much vocabulary that telling them apart is what
+    <em>costs</em> an extra topic.
+  </p>
+  <p>
+    At K&nbsp;=&nbsp;7 all six weeks finally get their own topic, and week 6's
+    becomes <em>document word words matrix context idf</em> at 76%. At
+    K&nbsp;=&nbsp;8 the weeks still separate. Weeks 1 to 4 each hold one topic
+    the whole way through: power laws, null models, centrality, communities.
+    But only week 4 holds it firmly, at 61 to 67% of its text with nothing
+    else close. Week 3 is the shakiest: at six topics its own topic takes 42%
+    and the runner-up takes 40%, which is close to a coin toss.
+  </p>
 
-<main class="post">
-  <div class="tie-table" id="t-table">
-    <div class="tie-head">
-      <p>How often a shared word must appear to tie a word used in only one
-        week, when that word appears 1, 3 or 10 times.</p>
-      <div class="mode" role="group" aria-label="Which TF-IDF">
-        <button type="button" data-f="course" aria-pressed="false">Course</button>
-        <button type="button" data-f="jm" aria-pressed="true">J&amp;M</button>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table class="data jm-table">
-        <thead>
-          <tr><th>Word is in</th><th>1&times;</th><th>3&times;</th><th>10&times;</th></tr>
-        </thead>
-        <tbody data-f="course" hidden>
-          <tr><td class="t">1 week</td><td>1</td><td>3</td><td>10</td></tr>
-          <tr><td class="t">2 weeks</td><td>2</td><td>5</td><td>17</td></tr>
-          <tr><td class="t">3 weeks</td><td>3</td><td>8</td><td>26</td></tr>
-          <tr><td class="t">4 weeks</td><td>5</td><td>14</td><td>45</td></tr>
-          <tr><td class="t">5 weeks</td><td>10</td><td>30</td><td>99</td></tr>
-          <tr><td class="t">6 weeks</td><td>never</td><td>never</td><td>never</td></tr>
-        </tbody>
-        <tbody data-f="jm">
-          <tr><td class="t">1 week</td><td>1</td><td>3</td><td>10</td></tr>
-          <tr><td class="t">2 weeks</td><td>5</td><td>26</td><td>183</td></tr>
-          <tr><td class="t">3 weeks</td><td>39</td><td>659</td><td>14,789</td></tr>
-          <tr><td class="t">4 weeks</td><td>2,625</td><td>336,847</td><td>6.9 &times; 10<sup>7</sup></td></tr>
-          <tr><td class="t">5 weeks</td><td>6.7 &times; 10<sup>8</sup></td><td>3.3 &times; 10<sup>13</sup></td><td>4.5 &times; 10<sup>18</sup></td></tr>
-          <tr><td class="t">6 weeks</td><td>never</td><td>never</td><td>never</td></tr>
-        </tbody>
-      </table>
-    </div>
+  <p>
+    The second column needs a word of explanation. <strong>NMI</strong>
+    compares two ways of grouping the same 238 pieces of text: the week a
+    piece actually came from, and the topic it leans on most. A score of 1
+    would mean the two groupings are identical. A score of 0 would mean
+    knowing one tells you nothing at all about the other. We land near the
+    middle.
+  </p>
+
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Topics</th>
+          <th>Every week has its own?</th>
+          <th>Text grouped like the weeks (NMI)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="t">6</td><td>No. Weeks 5 and 6 share one</td><td>0.50</td></tr>
+        <tr><td class="t">7</td><td>Yes</td><td>0.51</td></tr>
+        <tr><td class="t">8</td><td>Yes</td><td>0.47</td></tr>
+      </tbody>
+    </table>
   </div>
 
   <p>
-    Under J&amp;M a shared word has almost no chance. The book takes the log of
-    the count, so piling up occurrences barely helps, while every extra week
-    that uses the word cuts its idf hard. A word in three weeks has to appear
-    659 times to tie a df&nbsp;=&nbsp;1 word seen three times. Under the course
-    formula it needs about 2.6 times as many, or 8. That is why the J&amp;M list
-    is green from top to bottom in every week.
+    <strong>And more topics is not simply better.</strong> Those two columns
+    ask different questions, and they do not peak together. K&nbsp;=&nbsp;8
+    gives every week its own topic, yet groups the text <em>less</em> like the
+    weeks than K&nbsp;=&nbsp;6 does. There is no setting where both are best.
+  </p>
+</section>
+<section class="post">
+  <h2>A topic is not a subject</h2>
+  <p>
+    It is tempting to read the grid above as "week 4 is about communities".
+    That is not what a topic model says, and the gap matters.
   </p>
   <p>
-    This is probably mostly down to our small corpus. With only six documents,
-    idf can take just six values, and log<sub>10</sub>(6/df) drops to almost
-    nothing after a few weeks. With hundreds of documents, sharing a word with
-    a handful of others would hardly matter. Even so, both lists do a good job
-    of pulling out what each week is about: <em>pagerank</em>,
-    <em>closeness</em> and <em>eigenvector</em> for week 3,
-    <em>philosophers</em>, <em>partition</em> and <em>dendrogram</em> for
-    week 4, <em>tokenization</em> and <em>subword</em> for week 5,
-    <em>topics</em>, <em>embedding</em> and <em>lda</em> for week 6.
+    <strong>What LDA actually assumes.</strong> A topic is a
+    <strong>probability distribution over words</strong>, nothing more.
+    It is a long list of every word in the vocabulary with a number saying how
+    likely that word is under this topic. And a document is not <em>in</em> a
+    topic; it is a <strong>mixture</strong> of all of them, a set of fractions
+    that add up to 1. When we say week 4 "is" the communities topic, we mean
+    61% of its text leans that way. The other 39% is spread across the rest.
+  </p>
+  <p>
+    So the labels we wrote are ours, not the model's. LDA gave us
+    <em>communities community links link modularity groups</em>. Calling that
+    "the communities topic" is a summary <em>we</em> chose, and summarising a
+    distribution over a thousand words with six of them throws nearly all of
+    it away.
   </p>
 
-  <h2>How alike are the weeks?</h2>
-
-  <figure class="widget sim-fig" id="s-widget">
-    <div class="widget-head">
-      <h3>Cosine similarity between the weeks</h3>
-    </div>
-
-    <div class="mode" role="group" aria-label="Which TF-IDF" id="s-mode">
-      <button type="button" data-f="course" aria-pressed="true">Course</button>
-      <button type="button" data-f="jm" aria-pressed="false">J&amp;M</button>
-    </div>
-
-    <p class="loading" id="s-loading">Counting words&hellip;</p>
-
-    <div class="sim-wrap" id="s-wrap" hidden>
-      <table class="sim-matrix" id="s-matrix"></table>
-      <div class="sim-scale" aria-hidden="true">
-        <span class="sim-ramp"></span>
-        <span class="sim-ticks" id="s-ticks"></span>
-      </div>
-    </div>
-  </figure>
+  <h3 class="sub">Three reasons to stay careful</h3>
+  <ul>
+    <li><strong>The number of topics is something we chose.</strong> Six,
+      seven and eight all gave defensible answers, and they disagree about
+      whether weeks 5 and 6 are one subject or two. Nothing in the data
+      decides it.</li>
+    <li><strong>The usual quality score points the wrong way.</strong>
+      Perplexity, the standard measure, keeps improving as we ask for
+      <em>fewer</em> topics, and is best at four, which merges whole
+      pairs of weeks. We would have picked a worse model by trusting it.</li>
+    <li><strong>Agreement with the real weeks never gets close.</strong>
+      Across every setting from 4 to 10 topics, NMI stays between 0.46 and
+      0.54, and purity between 0.50 and 0.63. The topics clearly track the
+      course, and they clearly are not the course.</li>
+  </ul>
 
   <p>
-    The matrix splits the course in two. The first four weeks, all about
-    networks, are more alike among themselves (0.07 to 0.16) than with
-    weeks 5 and 6 (0.02 to 0.05). Weeks 5 and 6 are by far the most alike
-    pair at 0.33, which is what we would expect, since week 6 builds further
-    on the NLP from week 5 and keeps using its words: <em>corpus</em>,
-    <em>word</em>, <em>language</em>. J&amp;M shows the same pattern, only
-    weaker, because it gives less TF-IDF weight to words that occur in
-    several weeks. Those shared words are exactly what pushes the
-    similarities higher under the course formula.
+    <strong>And the text itself is a choice.</strong> We dropped every sentence
+    with maths in it, which cost week 2 and week 4 a fifth of their sentences
+    while week 5 lost almost nothing. The weeks that look thinnest here are
+    partly the weeks our own pipeline cut the most. A topic model cannot tell
+    the difference between a subject that was not discussed and one we
+    deleted.
   </p>
-
+</section>
+<section class="post">
   <p style="margin:3rem 0 4rem">
     <a href="../index.html">&larr; Back to all weeks</a>
   </p>
+</section>
 </main>
 
-<div class="modal-overlay" id="helpOverlay">
+<div class="modal-overlay hidden" id="helpOverlay">
   <div class="modal">
     <h2>Make the scale balance</h2>
     <p>
@@ -308,17 +657,17 @@
       <li>The <strong>orange</strong> word also appears in other weeks (the
         filled dots). The more weeks share it, the smaller its idf gets. A
         word in all six weeks gets ln(6/6) = 0, and no count can save it.</li>
-      <li>Guess the count that would give the orange word the
-        <strong>same TF-IDF</strong> as the green one. Use the slider or
-        type the number.</li>
+      <li>Pick the count that would give the orange word the
+        <strong>same TF-IDF</strong> as the green one. One of the four
+        options is right; the others are close enough to be worth
+        thinking about.</li>
       <li>Since |d| cancels out, the exact answer is
         <div class="formula-line">count<sub>orange</sub> = count<sub>green</sub> &times; ln(6/1) &divide; ln(6/df)</div>
-        Counts are whole numbers, so the nearest whole number gets the full
-        100 points.</li>
-      <li>With <strong>Course + J&amp;M</strong> you type two numbers, one
-        per formula. J&amp;M takes the log of the count, so its answers can run
-        into powers of ten: type <code>1e12</code> or <code>10^12</code>
-        for 10<sup>12</sup>.</li>
+        The right option scores 100. A wrong one still scores something,
+        based on how close it was.</li>
+      <li>With <strong>Course + book</strong> you pick once per formula.
+        The book takes the log of the count, so its answers run into powers
+        of ten. A normal option there is <code>6.9 &times; 10&#8311;</code>.</li>
     </ul>
     <p class="intro-note">
       After each round you also see how often the orange word
@@ -336,6 +685,8 @@
 </footer>
 
 <script defer src="assets/week6.js"></script>
+<script defer src="assets/week6_raw.js"></script>
+<script defer src="assets/week6_topics.js"></script>
 <script defer src="assets/week6_rank.js"></script>
 <script defer src="assets/week6_sim.js"></script>
 </body>

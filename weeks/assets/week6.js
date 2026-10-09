@@ -1,7 +1,8 @@
 /* Week 6: the TF-IDF balance game.
  * A word only one week uses (df = 1) against a word several weeks share.
- * Guess how often the shared word must appear in that week to tie, under
- * the course's TF-IDF and, optionally, Jurafsky & Martin's as well.
+ * Pick how often the shared word must appear in that week to tie, under
+ * the course's TF-IDF and, optionally, the book's (Jurafsky & Martin) too.
+ * Four options per formula, one of them right.
  * Vanilla JS, no modules. Mirrors week3.js's boot/fetch idiom. */
 
 const W6 = {
@@ -11,15 +12,16 @@ const W6 = {
   score: 0,
   locked: false,   // true once the current guesses are locked in
   jm: false,       // true when J&M is played next to the course formula
-  ui: {},          // per formula key: that formula's number box (+ slider)
+  ui: {},          // per formula key: that formula's choice buttons
 };
 
-// Course-only mode guesses on a log slider; with J&M there are two plain
-// boxes instead, since J&M's 1..10^25 range would hint at the answer.
-const SLIDER_STEPS = 1000;
-const COURSE_MAX = 400;                    // top course tie in the payload is ~364
-const COURSE_TICKS = [1, 3, 10, 30, 100, 400];
-const useSlider = () => !W6.jm;
+// Four options per formula. Distractors are multiples of the right answer
+// rather than fixed numbers, so they stay plausible whether the tie is 8 or
+// 10^18. How many of them land BELOW the answer is drawn per round: with a
+// fixed set of ratios the answer would always be, say, the second smallest,
+// and sorting the options by size would give it away every time.
+const RATIOS_BELOW = [1 / 2, 1 / 3, 1 / 7];
+const RATIOS_ABOVE = [2, 3, 7];
 
 const els = {};
 function grab() {
@@ -57,16 +59,6 @@ function fmtCount(c) {
 /** An exact (non-whole) tie: one decimal while that still means something. */
 const fmtTie = x => (x < 1000 ? x.toFixed(1) : fmtCount(x));
 
-/** What the number box shows: something parseCount() reads back. */
-const fmtInput = c => (c < 1e6 ? String(c) : c.toExponential(1).replace('e+', 'e'));
-
-/** Accepts 2466, 2,466, 1e12, 1.5e12, 10^12, 1.5x10^12. NaN otherwise. */
-function parseCount(text) {
-  let s = text.trim().toLowerCase().replace(/[,\s]/g, '');
-  s = s.replace(/^(\d+(?:\.\d+)?)?[x×*]?10\^/, (_, m) => `${m || 1}e`);
-  return Number(s);
-}
-
 /* ========================================================================== *
  * The two formulas
  *   course: tf = count/|d|,          idf = ln(N/df)
@@ -87,7 +79,7 @@ const F = {
   },
   jm: {
     key: 'jm',
-    label: 'J&M',
+    label: 'The book',
     tf: c => (c > 0 ? 1 + Math.log10(c) : 0),
     idf: df => Math.log10(W6.data.N / df),
     tfText: c => `1 + log₁₀ ${fmtCount(c)}`,
@@ -108,6 +100,60 @@ const tfError = (f, c, exact, len) => Math.abs(Math.log(f.tf(c, len) / f.tf(exac
 function bestWhole(f, exact, len) {
   const lo = Math.max(1, Math.floor(exact));
   return tfError(f, lo, exact, len) <= tfError(f, lo + 1, exact, len) ? lo : lo + 1;
+}
+
+/* -------------------------------------------------------------------------- *
+ * The four options
+ * -------------------------------------------------------------------------- */
+
+const hashSeed = str => {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+
+/** Small deterministic PRNG, so a reload does not reshuffle the options. */
+function rng(seed) {
+  let x = seed;
+  return () => {
+    x = (Math.imul(x, 1664525) + 1013904223) >>> 0;
+    return x / 4294967296;
+  };
+}
+
+/** The right answer plus three plausible wrong counts, in a stable order. */
+function choicesFor(f, r, roundIndex) {
+  const right = bestWhole(f, f.tie(r), r.week.length);
+  const rand = rng(hashSeed(`${roundIndex}:${f.key}:${r.b.t}`));
+
+  // 0..3 distractors below the answer, so its rank by size varies too.
+  let below = Math.floor(rand() * 4);
+  // A tie of 1 or 2 has no room underneath; everything would collapse to 1.
+  while (below > 0 && Math.round(right * RATIOS_BELOW[below - 1]) < 1) below--;
+
+  const ratios = [
+    ...RATIOS_BELOW.slice(0, below),
+    ...RATIOS_ABOVE.slice(0, 3 - below),
+  ];
+
+  const opts = [right];
+  for (const ratio of ratios) {
+    let v = Math.max(1, Math.round(right * ratio));
+    // Small ties round into each other; step away from the answer, never
+    // across it, so a distractor can't become the right number.
+    while (opts.includes(v)) v += ratio < 1 ? -1 : 1;
+    if (v < 1) v = Math.max(...opts) + 1;
+    opts.push(v);
+  }
+
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [opts[i], opts[j]] = [opts[j], opts[i]];
+  }
+  return { right, opts };
 }
 
 /** 100 for the nearest whole number (or a hair off a 10²⁰ tie); otherwise
@@ -171,85 +217,44 @@ function buildRounds() {
 }
 
 /* ========================================================================== *
- * Guess input. Course only: a log slider plus its number box. Course + J&M:
- * one empty number box per formula, so nothing anchors either guess.
+ * Guess input. Four buttons per formula; one of them is the tie.
  * ========================================================================== */
-
-const toCount = p => Math.max(1, Math.min(COURSE_MAX,
-  Math.round(Math.exp(p / SLIDER_STEPS * Math.log(COURSE_MAX)))));
-const toSlider = c => Math.round(Math.log(Math.min(c, COURSE_MAX)) / Math.log(COURSE_MAX) * SLIDER_STEPS);
-
-const boxHtml = f => `
-  <label class="guess-value">
-    <input type="text" inputmode="decimal" autocomplete="off" placeholder="?"
-      aria-label="${f.label}: how many times">
-    times
-  </label>`;
 
 function buildGuessRows() {
   W6.ui = {};
-  if (useSlider()) {
-    els['g-guesses'].innerHTML = `
-      <div class="guess-row slider-row" data-f="course">
-        <button class="step" data-dir="-1" type="button" aria-label="One fewer">&minus;</button>
-        <div class="slider-wrap">
-          <input type="range" min="0" max="${SLIDER_STEPS}" step="1" aria-label="Your guess">
-          <div class="guess-ticks" aria-hidden="true">${COURSE_TICKS.map(t =>
-            `<span style="left:${(toSlider(t) / SLIDER_STEPS * 100).toFixed(2)}%">${t}</span>`).join('')}</div>
+  const r = W6.rounds[W6.i];
+
+  els['g-guesses'].innerHTML = active().map(f => {
+    const { opts } = choicesFor(f, r, W6.i);
+    return `
+      <div class="guess-row choices" data-f="${f.key}">
+        ${W6.jm ? `<span class="guess-label">${f.label}</span>` : ''}
+        <div class="choice-set" role="group" aria-label="${f.label}: pick the count">
+          ${opts.map(c => `
+            <button type="button" class="choice" data-count="${c}" aria-pressed="false">
+              ${fmtCount(c)} <span>times</span>
+            </button>`).join('')}
         </div>
-        <button class="step" data-dir="1" type="button" aria-label="One more">+</button>
-        ${boxHtml(F.course)}
       </div>`;
-  } else {
-    els['g-guesses'].innerHTML = active().map(f => `
-      <div class="guess-row" data-f="${f.key}">
-        <span class="guess-label">${f.label}</span>
-        ${boxHtml(f)}
-      </div>`).join('');
-  }
+  }).join('');
 
   for (const row of els['g-guesses'].querySelectorAll('.guess-row')) {
     const f = F[row.dataset.f];
-    const ui = {
-      input: row.querySelector('input[type="text"]'),
-      slider: row.querySelector('input[type="range"]'),
-      buttons: [...row.querySelectorAll('.step')],
-    };
+    const ui = { row, buttons: [...row.querySelectorAll('.choice')] };
     W6.ui[f.key] = ui;
-    ui.input.addEventListener('input', () => readGuess(f));
-    if (ui.slider) {
-      ui.slider.addEventListener('input', () => setGuess(toCount(Number(ui.slider.value)), 'slider'));
-      ui.buttons.forEach(btn => btn.addEventListener('click', () =>
-        setGuess((W6.rounds[W6.i].guess.course || 1) + Number(btn.dataset.dir))));
-    }
+    ui.buttons.forEach(btn => btn.addEventListener(
+      'click', () => pickGuess(f, Number(btn.dataset.count))));
   }
 }
 
-/** Slider mode: sets the course guess and syncs whichever control did not
- * cause the change. */
-function setGuess(c, from) {
-  const r = W6.rounds[W6.i];
-  const ui = W6.ui.course;
-  r.guess.course = Math.max(1, Math.min(COURSE_MAX, Math.round(c)));
-  if (from !== 'slider') ui.slider.value = toSlider(r.guess.course);
-  if (from !== 'box') ui.input.value = r.guess.course;
-  ui.input.classList.remove('invalid');
-  renderShared();
-}
-
-/** Reads one box into the round; anything that is not a positive number
- * leaves that guess empty. In slider mode a valid number moves the slider. */
-function readGuess(f) {
-  const r = W6.rounds[W6.i];
+/** Records one pick and marks it as the pressed option. */
+function pickGuess(f, count) {
+  if (W6.locked) return;
   const ui = W6.ui[f.key];
-  const c = parseCount(ui.input.value);
-  const ok = Number.isFinite(c) && c >= 0.5;
-  if (ui.slider) {
-    if (ok) setGuess(c, 'box');
-    return;
-  }
-  r.guess[f.key] = ok ? Math.round(c) : undefined;
-  ui.input.classList.remove('invalid');
+  W6.rounds[W6.i].guess[f.key] = count;
+  ui.buttons.forEach(b => b.setAttribute(
+    'aria-pressed', String(Number(b.dataset.count) === count)));
+  ui.row.classList.remove('invalid');
   renderShared();
 }
 
@@ -330,25 +335,17 @@ function renderRound() {
     `to score the same as <em class="u">${r.a.t}</em>?`;
 
   renderUnique();
+  buildGuessRows();                        // the options differ every round
   setLocked(false);
-  if (useSlider()) {
-    setGuess(r.a.c);                       // the slider starts at the green word's count
-  } else {
-    for (const f of active()) {
-      W6.ui[f.key].input.value = '';
-      W6.ui[f.key].input.classList.remove('invalid');
-    }
-    renderShared();
-  }
+  renderShared();
   els['g-result'].hidden = true;
   els['g-result'].innerHTML = '';
-  W6.ui.course.input.focus({ preventScroll: true });
 }
 
 function setLocked(locked) {
   W6.locked = locked;
   for (const ui of Object.values(W6.ui)) {
-    [ui.input, ui.slider, ...ui.buttons].filter(Boolean).forEach(el => { el.disabled = locked; });
+    ui.buttons.forEach(btn => { btn.disabled = locked; });
   }
   els['g-lock'].hidden = locked;
   els['g-next'].hidden = !locked;
@@ -463,16 +460,23 @@ function lockIn() {
   const r = W6.rounds[W6.i];
   const missing = active().filter(f => r.guess[f.key] === undefined);
   if (missing.length) {
-    missing.forEach(f => W6.ui[f.key].input.classList.add('invalid'));
-    W6.ui[missing[0].key].input.focus();
+    missing.forEach(f => W6.ui[f.key].row.classList.add('invalid'));
+    W6.ui[missing[0].key].buttons[0].focus({ preventScroll: true });
     return;
   }
-  for (const f of active()) W6.ui[f.key].input.value = fmtInput(r.guess[f.key]);
   for (const f of active()) {
     r.pts[f.key] = points(f, r);
     W6.score += r.pts[f.key];
   }
   setLocked(true);
+  for (const f of active()) {
+    const { right } = choicesFor(f, r, W6.i);
+    for (const b of W6.ui[f.key].buttons) {
+      const c = Number(b.dataset.count);
+      if (c === right) b.classList.add('right');
+      else if (c === r.guess[f.key]) b.classList.add('wrong');
+    }
+  }
   renderShared();
   els['g-score'].textContent = W6.score;
 
@@ -544,7 +548,6 @@ function newGame() {
   els['g-widget'].classList.toggle('with-jm', W6.jm);
   els['f-course'].setAttribute('aria-pressed', String(!W6.jm));
   els['f-both'].setAttribute('aria-pressed', String(W6.jm));
-  buildGuessRows();
   W6.rounds = buildRounds();
   W6.i = 0;
   W6.score = 0;
@@ -580,7 +583,10 @@ wireModal(els['g-help'], els['helpOverlay'], els['helpClose']);
 // Enter locks in, then moves on
 window.addEventListener('keydown', e => {
   if (e.key !== 'Enter' || !W6.data || !els['helpOverlay'].classList.contains('hidden')) return;
-  if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+  // A picked option keeps focus, so Enter must still work there; the game's
+  // own buttons already act on Enter by themselves.
+  if (e.target.tagName === 'SELECT') return;
+  if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('choice')) return;
   if (!W6.locked) lockIn();
   else if (!els['g-next'].hidden) next();
 });

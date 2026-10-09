@@ -53,9 +53,19 @@ import os
 import re
 from collections import Counter
 
+# The same stop list the topic model uses (sklearn's "english"), so the
+# "hide filler words" view on the page and the topics further down agree
+# about what counts as a filler word.
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SITE = os.path.dirname(os.path.dirname(HERE))
 DATA = os.path.join(SITE, "data")
+if not os.path.isdir(DATA):
+    # data/ is deliberately not on main -- GitHub Pages serves main verbatim,
+    # so the corpus lives on the `corpus` branch instead (see data/README.md).
+    # Fall back to that worktree so this script runs from either checkout.
+    DATA = os.path.join(os.path.dirname(SITE), "SocialGraphs-corpus", "data")
 OUT = os.path.join(SITE, "weeks", "assets", "data", "week6_payload.json")
 
 TOKEN = re.compile(r"[a-z]+(?:[-'][a-z]+)*")
@@ -92,6 +102,7 @@ TOP_UNIQUE = 12           # per week: the most frequent df = 1 words
 TOP_SHARED = 20           # per week: the most frequent df = 2..5 words
 MIN_UNIQUE_COUNT = 3      # a df = 1 word must occur at least this often
 TOP_RANKED = 15           # per week and formula: words in the figure
+TOP_RAW = 10              # per week: most frequent words, no filtering at all
 
 
 def tokenize(text):
@@ -184,8 +195,27 @@ def main():
         print(f"week {w}: |d| = {lengths[w]:,}, {len(unique)} unique, "
               + ", ".join(f"df{lv}: {len(s)}" for lv, s in shared.items()))
 
+    raw = []
+    for w, c in counts.items():
+        kept = [(t, k) for t, k in c.most_common() if t not in ENGLISH_STOP_WORDS]
+        raw.append({
+            "week": w,
+            "types": len(c),
+            "stop_tokens": sum(k for t, k in c.items() if t in ENGLISH_STOP_WORDS),
+            "top": [{"t": t, "c": k} for t, k in c.most_common(TOP_RAW)],
+            "top_nostop": [{"t": t, "c": k} for t, k in kept[:TOP_RAW]],
+        })
+
+    for field in ("top", "top_nostop"):
+        always = set.intersection(*({x["t"] for x in r[field]} for r in raw))
+        print(f"raw[{field}]: {len(always)}/{TOP_RAW} shared by every week"
+              + (f" ({' '.join(sorted(always))})" if always else ""))
+    stop_share = sum(r["stop_tokens"] for r in raw) / sum(lengths.values())
+    print(f"raw: filler words are {stop_share:.0%} of all tokens")
+
     payload = {
         "N": n_docs,
+        "raw": raw,
         "vocab": len(df),
         "tokens": sum(lengths.values()),
         "everywhere": sum(1 for n in df.values() if n == n_docs),

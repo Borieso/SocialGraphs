@@ -20,7 +20,7 @@
     course: (c, len, df, N) => c / len * Math.log(N / df),
     jm: (c, len, df, N) => (1 + Math.log10(c)) * Math.log10(N / df),
   };
-  const LABEL = { course: 'Course', jm: 'J&M' };
+  const LABEL = { course: 'Course', jm: 'The book' };
 
   const fmtInt = n => n.toLocaleString('en-US');
   const fmtVal = x => (x === 0 ? '0' : x.toPrecision(3));

@@ -12,7 +12,7 @@
 /* ---------- Page chrome (mirrors week2.css) ---------- */
 
 .post-nav {
-  max-width: 1180px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 1.5rem 1.5rem 0;
   display: flex;
@@ -31,7 +31,7 @@
 .post-nav a:hover { text-decoration: underline; }
 
 .post-header {
-  max-width: 760px;
+  max-width: 880px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 1rem;
 }
@@ -54,7 +54,7 @@
 .lede strong { color: var(--ink); }
 
 .post {
-  max-width: 760px;
+  max-width: 880px;
   margin: 0 auto;
   padding: 0 1.5rem;
 }
@@ -159,7 +159,7 @@
 }
 
 .wide {
-  max-width: 1180px;
+  max-width: 1080px;
   margin-left: auto;
   margin-right: auto;
   padding: 0 1.5rem;
@@ -563,82 +563,8 @@ button.ghost:hover { border-color: var(--accent); }
   gap: 0.6rem;
 }
 
-.guess-value {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.guess-value input {
-  font: inherit;
-  font-family: "Playfair Display", Georgia, serif;
-  font-size: 1.5rem;
-  font-weight: 800;
-  width: 6.5em;
-  text-align: right;
-  color: var(--shared);
-  background: #fff;
-  border: 1px solid var(--pill-border);
-  border-radius: 10px;
-  padding: 0.15rem 0.5rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.guess-value input::placeholder { color: var(--pill-border); }
-.guess-value input:focus { outline: 2px solid var(--shared-soft); border-color: var(--shared); }
-.guess-value input.invalid { border-color: var(--off-path, #b0563f); outline: 2px solid var(--pill-pink-bg); }
-
 .guess input:disabled,
 .guess button:disabled { opacity: 0.6; cursor: default; }
-
-/* course-only mode: log slider between - and +, number box on the right */
-.slider-row { flex: 1; }
-
-.slider-wrap {
-  flex: 1;
-  min-width: 0;
-  padding-top: 1.2rem;   /* room above so the thumb lines up with the buttons */
-}
-
-.slider-wrap input[type="range"] {
-  width: 100%;
-  margin: 0;
-  accent-color: var(--shared);
-}
-
-/* ticks span the thumb's travel: the track minus half a thumb each side */
-.guess-ticks {
-  position: relative;
-  height: 1rem;
-  margin: 0.2rem 8px 0;
-  font-size: 0.7rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.guess-ticks span {
-  position: absolute;
-  transform: translateX(-50%);
-}
-
-.step {
-  font: inherit;
-  font-weight: 700;
-  width: 2.1rem;
-  height: 2.1rem;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid var(--pill-border);
-  background: #fff;
-  color: var(--ink);
-  cursor: pointer;
-}
-
-.step:hover:not(:disabled) { border-color: var(--accent); }
-
-.slider-row .guess-value input { width: 4.2em; }
 
 /* the reveal: one card per formula, same parts in the same order */
 .result { margin-top: 1.2rem; }
@@ -915,10 +841,6 @@ button.ghost:hover { border-color: var(--accent); }
   .bars { grid-template-columns: 1fr; gap: 0.2rem; }
   .formula { font-size: 1rem; gap: 0.45rem; }
   .formula .flabel { width: auto; }
-  .guess-value input { font-size: 1.3rem; }
-  .slider-row { flex-wrap: wrap; row-gap: 0.3rem; }
-  .slider-row > .slider-wrap { order: -1; flex-basis: 100%; padding-top: 0; }
-  .slider-row > .guess-value { margin-left: auto; }
   .bars .track { margin-bottom: 0.5rem; }
 }
 
@@ -1208,4 +1130,334 @@ table.data td.t { font-variant-numeric: normal; }
   .sim-matrix tbody th .ttl { display: none; }
   .sim-matrix td { width: 2.6rem; height: 2.4rem; font-size: 0.78rem; }
   .sim-matrix th { padding: 0.3rem 0.3rem; }
+}
+
+
+/* ========================================================================== *
+ * Section 1: the data pipeline, collapsed by default
+ * ========================================================================== */
+
+.pipeline {
+  margin: 1.4rem 0 1.8rem;
+  border: 1px solid var(--grid-line);
+  border-radius: 14px;
+  background: var(--card-bg, #fdfaf4);
+}
+
+.pipeline > summary {
+  cursor: pointer;
+  padding: 0.95rem 1.1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.6rem;
+  list-style: none;
+  border-radius: 14px;
+}
+
+.pipeline > summary::-webkit-details-marker { display: none; }
+
+.pipeline > summary::before {
+  content: "";
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.35rem;
+  border-right: 2px solid var(--accent-dark, #834d26);
+  border-bottom: 2px solid var(--accent-dark, #834d26);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.pipeline[open] > summary::before { transform: rotate(45deg); }
+.pipeline > summary:hover { background: rgba(0, 0, 0, 0.02); }
+.pipeline > summary:focus-visible { outline: 2px solid var(--shared); }
+.pipeline > summary span { font-size: 0.86rem; color: var(--muted); }
+
+.pipeline-body {
+  padding: 0 1.1rem 0.4rem;
+  border-top: 1px solid var(--grid-line);
+}
+
+/* A vertical timeline: numbered node, a line running between the nodes,
+   one step per row. NOTE: do not call this `.steps` -- that class already
+   belongs to the game's result card, where it is a two-column grid. */
+.pipeline-steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 1.3rem 0 0.6rem;
+  padding: 0;
+}
+
+.pipeline-steps > li {
+  position: relative;
+  counter-increment: step;
+  padding: 0 0 1.5rem 3rem;
+}
+
+.pipeline-steps > li:last-child { padding-bottom: 0.4rem; }
+
+/* the node */
+.pipeline-steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-dark, #834d26);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the line, from under one node to the top of the next */
+.pipeline-steps > li::after {
+  content: "";
+  position: absolute;
+  left: calc(0.925rem - 1px);
+  top: 2.1rem;
+  bottom: -0.25rem;
+  width: 2px;
+  background: var(--grid-line);
+}
+
+.pipeline-steps > li:last-child::after { display: none; }
+
+.pipeline-steps h4 {
+  margin: 0 0 0.3rem;
+  padding-top: 0.2rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.pipeline-steps p {
+  margin: 0;
+  font-size: 0.97rem;
+  line-height: 1.6;
+}
+
+/* the one step that costs real data */
+.pipeline-steps > li.costly::before { background: var(--off-path); }
+.pipeline-steps > li.costly h4 { color: var(--off-path); }
+
+/* ========================================================================== *
+ * Section 2: raw counts
+ * ========================================================================== */
+
+.sw.everyweek { background: var(--shared); }
+.sw.someweeks { background: var(--rank-unique, #2d6a38); }
+
+.raw-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.raw-legend span { display: inline-flex; align-items: center; gap: 0.45rem; }
+
+.raw-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.raw-bar {
+  display: grid;
+  grid-template-columns: 1.6rem 7rem 1fr 4rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.22rem 0;
+}
+
+.raw-rank { color: var(--muted); font-size: 0.8rem; text-align: right; }
+
+.raw-word {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.raw-track {
+  background: var(--grid-line);
+  border-radius: 4px;
+  height: 0.85rem;
+  overflow: hidden;
+}
+
+.raw-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--shared);
+}
+
+.raw-bar.someweeks .raw-word { color: var(--rank-unique, #2d6a38); }
+.raw-bar.someweeks .raw-fill { background: var(--rank-unique, #2d6a38); }
+
+.raw-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.raw-note {
+  margin: 1rem 0 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.raw-table td.t { font-weight: 600; }
+
+@media (max-width: 560px) {
+  .raw-bar { grid-template-columns: 1.4rem 5.5rem 1fr 3.4rem; gap: 0.4rem; }
+}
+
+/* ========================================================================== *
+ * Section 5: the four options
+ * ========================================================================== */
+
+.choice-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.choice {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--pill-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.choice span { font-weight: 400; color: var(--muted); font-size: 0.85rem; }
+.choice:hover:not(:disabled) { border-color: var(--shared); }
+.choice:focus-visible { outline: 2px solid var(--shared); }
+
+.choice[aria-pressed="true"] {
+  background: var(--shared);
+  border-color: var(--shared);
+  color: #fff;
+}
+
+.choice[aria-pressed="true"] span { color: rgba(255, 255, 255, 0.75); }
+.choice:disabled { opacity: 0.55; cursor: default; }
+
+/* after locking in */
+.choice.right {
+  opacity: 1;
+  border-color: var(--optimal);
+  box-shadow: inset 0 0 0 2px var(--optimal);
+}
+
+.choice.wrong {
+  opacity: 1;
+  border-color: var(--off-path);
+  text-decoration: line-through;
+}
+
+.guess-row.invalid .choice-set {
+  outline: 2px solid var(--off-path);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+/* ========================================================================== *
+ * Section 6: the topic grid
+ * ========================================================================== */
+
+.topic-matrix {
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 0.85rem;
+}
+
+.topic-matrix th {
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
+}
+
+.topic-matrix thead th { text-align: center; font-size: 0.8rem; }
+
+.topic-matrix thead th.corner {
+  text-align: right;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.topic-matrix tbody th { text-align: right; }
+
+.topic-matrix td {
+  width: 3.4rem;
+  height: 2.6rem;
+  text-align: center;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.topic-matrix td.dominant { box-shadow: inset 0 0 0 2px var(--ink); font-weight: 700; }
+
+.topic-ramp {
+  display: block;
+  height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #d2a47e, #bb8257, #a2663b, #834d26, #5f3416);
+}
+
+.topic-fig .sim-scale { width: min(18rem, 100%); padding-bottom: 1.4rem; }
+
+.topic-fig .sim-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding-top: 0.25rem;
+}
+
+.topic-fig .sim-ticks span { position: static; transform: none; }
+
+.topic-list {
+  list-style: none;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  font-size: 0.86rem;
+}
+
+.topic-list li {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr auto;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--grid-line);
+}
+
+.topic-home { font-weight: 700; color: var(--accent-dark, #834d26); }
+.topic-terms { font-weight: 600; }
+.topic-conc { color: var(--muted); white-space: nowrap; }
+
+.post h3.sub {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.1rem;
+  margin: 2rem 0 0.4rem;
+}
+
+@media (max-width: 560px) {
+  .topic-list li { grid-template-columns: 2.4rem 1fr; }
+  .topic-conc { grid-column: 2; }
 }

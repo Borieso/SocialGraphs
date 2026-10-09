@@ -17,7 +17,7 @@
     tip: document.getElementById('r-tip'),
   };
 
-  const LABEL = { course: 'Course', jm: 'J&M' };
+  const LABEL = { course: 'Course', jm: 'The book' };
 
   // One hue, light to dark. Validated as an ordinal ramp on the card
   // surface (#f8f2e5): monotone lightness, visible steps, light end 2:1.
