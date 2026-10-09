@@ -435,15 +435,16 @@ function resultBlock(f, r) {
       </div>
       <dl class="steps">${steps(f, r)}</dl>
       <div class="bars">
+        <div class="bars-cap">TF-IDF in week ${r.week.week}'s text</div>
         ${bar('bar-a', target, `<b>${r.a.t}</b> &times;${r.a.c}`)}
-        ${bar('bar-guess', atGuess, `your guess &times;${fmtCount(g)}`)}
-        ${bar('bar-real', real, `real &times;${r.b.c}`)}
+        ${bar('bar-guess', atGuess, `<b>${r.b.t}</b> &times;${fmtCount(g)} <span class="muted">your guess</span>`)}
+        ${bar('bar-real', real, `<b>${r.b.t}</b> &times;${r.b.c} <span class="muted">actual</span>`)}
       </div>
       <p class="takeaway">${lesson(f, r)}</p>
     </div>`;
 }
 
-/** One line under the cards: the shared word's real count and who wins. */
+/** One line under the cards: the shared word's real count, the TF-IDF it gets from it, and who wins. */
 function realLine(r) {
   const len = r.week.length;
   const verb = f => (tfidf(f, r.b.c, len, r.df) > tfidf(f, r.a.c, len, 1) ? 'beats' : 'loses to');
@@ -452,7 +453,9 @@ function realLine(r) {
   const outcome = fs.length === 1 ? `<b>${verb(fs[0])}</b> ${vs}`
     : verb(fs[0]) === verb(fs[1]) ? `<b>${verb(fs[0])}</b> ${vs} under both formulas`
     : fs.map(f => `<b>${verb(f)}</b> ${vs} under ${f.label}`).join(' but ');
-  return `In week ${r.week.week}, <em>${r.b.t}</em> really appears <b>${r.b.c}</b> times, so it ${outcome}.`;
+  const vals = fs.map(f => `<b>${fmtVal(tfidf(f, r.b.c, len, r.df))}</b>${fs.length > 1 ? ` under ${f.label}` : ''}`).join(' and ');
+  return `In week ${r.week.week}'s text, <em>${r.b.t}</em> actually appears <b>${r.b.c}</b> times. `
+    + `That gives it a real TF-IDF of ${vals} in this week, so it ${outcome}.`;
 }
 
 function lockIn() {

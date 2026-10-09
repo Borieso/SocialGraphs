@@ -690,7 +690,14 @@ button.ghost:hover { border-color: var(--accent); }
   font-size: 0.82rem;
 }
 
+.bars .bars-cap {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .bars .lbl { color: var(--body-text); }
+.bars .lbl .muted { color: var(--muted); }
 .bars .lbl b { color: var(--ink); }
 
 .bars .track {
